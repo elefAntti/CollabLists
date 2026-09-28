@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Collab Lists</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --text:#1c1e21; --muted:#6b7280;
+    --accent:#4f46e5; --accent-text:#fff; --border:#e5e7eb; --danger:#dc2626;
+    --chip:#eef0f4; --chip-active:#4f46e5; --chip-active-text:#fff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#15171c; --card:#1f2229; --text:#e7e9ee; --muted:#9aa1ad;
+      --accent:#8183f4; --accent-text:#0d0e12; --border:#2c303a; --danger:#f87171;
+      --chip:#262a33; --chip-active:#8183f4; --chip-active-text:#0d0e12;
+    }
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; min-height:100dvh;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--border); background:var(--card);
+    position:sticky; top:0; z-index:5;
+  }
+  header h1{font-size:18px; margin:0; display:flex; align-items:center; gap:8px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+  .dot.online{background:#22c55e}
+  .dot.error{background:var(--danger)}
+  #peercount{font-size:12px;color:var(--muted)}
+  .iconbtn{
+    background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;
+    padding:8px;border-radius:8px;line-height:1;
+  }
+  .iconbtn:hover{background:var(--chip)}
+  #listbar{
+    display:flex; gap:8px; padding:10px 12px; overflow-x:auto; background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .chip{
+    flex:none; padding:8px 14px; border-radius:999px; background:var(--chip); color:var(--text);
+    border:none; font-size:14px; cursor:pointer; white-space:nowrap;
+  }
+  .chip.active{background:var(--chip-active); color:var(--chip-active-text); font-weight:600}
+  .headbtns{display:flex; gap:6px}
+  .headbtn{
+    background:var(--chip); color:var(--text); border:none; border-radius:999px;
+    padding:7px 12px; font-size:14px; cursor:pointer; white-space:nowrap;
+  }
+  .headbtn.primary{background:var(--accent); color:var(--accent-text); font-weight:600}
+  main{flex:1; display:flex; flex-direction:column; overflow:hidden}
+  #listheader{
+    display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border);
+  }
+  #listname{font-size:16px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #items{list-style:none; margin:0; padding:8px 8px 90px; overflow-y:auto; flex:1}
+  #items li{
+    display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:10px 8px; margin:6px 4px;
+  }
+  #items li.checked .text{text-decoration:line-through; color:var(--muted)}
+  #items li .updown{display:flex; flex-direction:column; flex:none}
+  #items li .updown button{
+    background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;line-height:1.3;
+  }
+  #items li input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--accent)}
+  #items li .text{
+    flex:1; min-width:0; word-break:break-word; padding:4px; border-radius:6px; outline:none;
+  }
+  #items li .text[contenteditable="true"]{background:var(--chip)}
+  #items li .thumb{width:36px;height:36px;object-fit:cover;border-radius:6px;flex:none;cursor:pointer}
+  #items li button.small{
+    background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;flex:none;padding:6px;
+  }
+  #items li button.small.danger{color:var(--danger)}
+  #additemform{
+    display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--border); background:var(--card);
+    position:sticky; bottom:0;
+  }
+  #additemform input{
+    flex:1; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px;
+  }
+  #additemform button[type="submit"]{
+    background:var(--accent); color:var(--accent-text); border:none; border-radius:10px; padding:0 18px; font-size:15px; cursor:pointer; font-weight:600;
+  }
+  #emptystate{flex:1; display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:24px}
+  dialog{
+    border:none; border-radius:14px; padding:0; max-width:380px; width:90vw; color:var(--text); background:var(--card);
+  }
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .dlg-inner{padding:20px; display:flex; flex-direction:column; gap:12px}
+  .dlg-inner h2{margin:0; font-size:17px}
+  .dlg-inner input[type=text]{
+    padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; width:100%;
+  }
+  .dlg-inner .row{display:flex; gap:8px}
+  .btn{background:var(--accent); color:var(--accent-text); border:none; border-radius:10px; padding:11px 16px; font-size:15px; cursor:pointer; font-weight:600}
+  .btn.secondary{background:var(--chip); color:var(--text)}
+  .btn.full{width:100%}
+  .code-box{
+    font-family:ui-monospace,Menlo,monospace; font-size:13px; background:var(--bg); border:1px solid var(--border);
+    border-radius:8px; padding:10px; word-break:break-all;
+  }
+  #qrhost{display:flex; justify-content:center; padding:8px 0}
+  .hint{font-size:12px; color:var(--muted)}
+  .members{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="dot" id="statusdot"></span> Lists <span id="peercount"></span></h1>
+  <div class="headbtns">
+    <button class="headbtn" id="joinBtn" title="Join a list shared with you">Join</button>
+    <button class="headbtn primary" id="newListBtn" title="Create a new list">＋ New list</button>
+  </div>
+</header>
+
+<nav id="listbar" hidden></nav>
+
+<main id="main" hidden>
+  <div id="listheader">
+    <span id="listname"></span>
+    <span class="members" id="memberCount"></span>
+    <button class="iconbtn" id="renameBtn" title="Rename">✎</button>
+    <button class="iconbtn" id="shareBtn" title="Share">📤</button>
+    <button class="iconbtn" id="deleteListBtn" title="Remove list">🗑</button>
+  </div>
+  <ul id="items"></ul>
+  <form id="additemform">
+    <input id="newitem" type="text" placeholder="Add item…" autocomplete="off">
+    <input id="attachInput" type="file" accept="image/*" hidden>
+    <button type="button" class="iconbtn" id="attachPickBtn" title="Attach image">📎</button>
+    <button type="submit">Add</button>
+  </form>
+</main>
+
+<div id="emptystate">
+  <div>Create a list, or join one someone shared with you.</div>
+  <div class="row" style="display:flex; gap:8px">
+    <button class="btn secondary" id="emptyJoinBtn">Join a list</button>
+    <button class="btn" id="emptyNewBtn">＋ New list</button>
+  </div>
+</div>
+
+<dialog id="newListDialog">
+  <div class="dlg-inner">
+    <h2>New list</h2>
+    <input type="text" id="newListName" placeholder="e.g. Cabin shopping list">
+    <div class="row">
+      <button class="btn secondary full" id="newListCancel">Cancel</button>
+      <button class="btn full" id="newListCreate">Create</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="renameDialog">
+  <div class="dlg-inner">
+    <h2>Rename list</h2>
+    <input type="text" id="renameInput">
+    <div class="row">
+      <button class="btn secondary full" id="renameCancel">Cancel</button>
+      <button class="btn full" id="renameSave">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="shareDialog">
+  <div class="dlg-inner">
+    <h2>Share this list</h2>
+    <p class="hint">Send this code to someone, or let them scan the QR code. They'll tap "Join a list" and paste or scan it.</p>
+    <div class="code-box" id="shareCode"></div>
+    <div id="qrhost"></div>
+    <div class="row">
+      <button class="btn secondary full" id="copyCodeBtn">Copy code</button>
+      <button class="btn full" id="closeShareBtn">Done</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="joinDialog">
+  <div class="dlg-inner">
+    <h2>Join a list</h2>
+    <input type="text" id="joinCodeInput" placeholder="Paste share code here">
+    <input type="file" id="scanInput" accept="image/*" capture="environment" hidden>
+    <button class="btn secondary full" id="scanBtn">📷 Scan QR code</button>
+    <p class="hint" id="joinStatus"></p>
+    <div class="row">
+      <button class="btn secondary full" id="joinCancel">Cancel</button>
+      <button class="btn full" id="joinConfirm">Connect</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="imgDialog">
+  <div class="dlg-inner">
+    <img id="imgDialogImg" style="max-width:100%;border-radius:10px">
+    <button class="btn full" id="imgDialogClose">Close</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- storage ----------
+  const LS_ID = "collablists_myid";
+  const LS_DATA = "collablists_data";
+  const LS_DELETED = "collablists_deleted";
+
+  function uid(prefix){
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+  function getMyId(){
+    let id = localStorage.getItem(LS_ID);
+    if(!id){ id = "cl" + Math.random().toString(36).slice(2,10); localStorage.setItem(LS_ID, id); }
+    return id;
+  }
+  function loadLists(){
+    try{ return JSON.parse(localStorage.getItem(LS_DATA) || "{}"); }catch(e){ return {}; }
+  }
+  function saveLists(){ localStorage.setItem(LS_DATA, JSON.stringify(state.lists)); }
+  function loadDeleted(){
+    try{ return JSON.parse(localStorage.getItem(LS_DELETED) || "{}"); }catch(e){ return {}; }
+  }
+  function saveDeleted(){ localStorage.setItem(LS_DELETED, JSON.stringify(state.deleted)); }
+
+  const state = { myId: getMyId(), lists: loadLists(), deleted: loadDeleted(), currentList: null };
+
+  // ---------- peer networking ----------
+  const HEARTBEAT_MS = 5000;       // ping interval on open connections
+  const DEAD_AFTER_MS = 20000;     // drop a connection that has been silent this long
+  const CONNECT_TIMEOUT_MS = 15000;
+  const MAX_RETRY_MS = 60000;
+
+  let peer = null;
+  const connections = {};      // peerId -> open DataConnection
+  const connecting = {};       // peerId -> { conn, timer } for attempts in flight
+  const pendingJoins = {};     // peerId -> [listId,...]
+  const lastSeen = {};         // peerId -> ms timestamp of last message
+  const retry = {};            // peerId -> { delay, next } per-peer backoff
+  let reconnectTimer = null, reconnectDelay = 1000;
+  let netStatus = "connecting", netDetail = "connecting…";
+
+  function setStatus(status, detail){
+    netStatus = status; netDetail = detail || "";
+    renderPeerCount();
+  }
+
+  function initPeer(){
+    clearTimeout(reconnectTimer); reconnectTimer = null;
+    if(peer){ try{ peer.destroy(); }catch(e){} }
+    setStatus("connecting", "connecting…");
+    let p;
+    try{ p = new Peer(state.myId); }
+    catch(e){ setStatus("error", "offline"); scheduleReconnect(); return; }
+    peer = p;
+
+    // Every handler checks p === peer so events from a replaced instance are ignored.
+    p.on("open", function(){
+      if(p !== peer) return;
+      reconnectDelay = 1000;
+      setStatus("online");
+      resetPeerBackoff();
+      connectToKnownPeers();
+    });
+    p.on("connection", function(conn){ if(p === peer) setupConnection(conn); });
+    p.on("disconnected", function(){
+      if(p !== peer) return;
+      setStatus("connecting", "reconnecting…");
+      scheduleReconnect();
+    });
+    p.on("close", function(){ if(p === peer) scheduleReconnect(); });
+    p.on("error", function(err){
+      if(p !== peer) return;
+      const type = err && err.type;
+      if(type === "peer-unavailable"){
+        // The remote device is offline. Not a problem with our own connection.
+        const m = /(\S+)$/.exec((err && err.message) || "");
+        if(m) failAttempt(m[1]);
+        return;
+      }
+      if(type === "unavailable-id"){
+        // Our ID is still registered, either by another open tab or by a
+        // session the server hasn't timed out yet (e.g. right after a reload).
+        // Keep retrying with the same ID: the lists others share with us refer to it.
+        setStatus("error", "waiting for ID (another tab open?)");
+        scheduleReconnect();
+        return;
+      }
+      if(type === "browser-incompatible"){
+        setStatus("error", "browser not supported");
+        return;
+      }
+      if(type === "webrtc") return; // per-connection failures are handled on the connection
+      setStatus("error", "offline");
+      scheduleReconnect();
+    });
+  }
+
+  function scheduleReconnect(){
+    if(reconnectTimer) return;
+    reconnectTimer = setTimeout(function(){
+      reconnectTimer = null;
+      if(!peer || peer.destroyed) initPeer();
+      else if(peer.disconnected){
+        try{ peer.reconnect(); }catch(e){ initPeer(); }
+      }
+    }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  }
+
+  function reconnectNow(){
+    reconnectDelay = 1000;
+    clearTimeout(reconnectTimer); reconnectTimer = null;
+    if(!peer || peer.destroyed || peer.disconnected) scheduleReconnect();
+    resetPeerBackoff();
+    connectToKnownPeers();
+  }
+
+  function resetPeerBackoff(){ Object.keys(retry).forEach(function(k){ delete retry[k]; }); }
+
+  // When both sides dial each other at once we end up with two connections.
+  // Both sides keep the one initiated by the lexically smaller peer ID.
+  function initiatorOf(conn){ return conn._outbound ? state.myId : conn.peer; }
+
+  function safeSend(conn, msg){
+    try{ conn.send(msg); }catch(e){ dropConnection(conn); }
+  }
+
+  function dropConnection(conn){
+    const id = conn.peer;
+    if(connections[id] === conn){ delete connections[id]; delete lastSeen[id]; }
+    if(connecting[id] && connecting[id].conn === conn){
+      clearTimeout(connecting[id].timer);
+      delete connecting[id];
+    }
+    try{ conn.close(); }catch(e){}
+    renderPeerCount();
+  }
+
+  function failAttempt(peerId){
+    if(connecting[peerId]){
+      const conn = connecting[peerId].conn;
+      clearTimeout(connecting[peerId].timer);
+      delete connecting[peerId];
+      try{ conn.close(); }catch(e){}
+    }
+    const r = retry[peerId] || { delay: 1000 };
+    r.delay = Math.min(r.delay * 2, MAX_RETRY_MS);
+    r.next = Date.now() + r.delay;
+    retry[peerId] = r;
+  }
+
+  function setupConnection(conn){
+    const id = conn.peer;
+    conn.on("open", function(){
+      if(connecting[id] && connecting[id].conn === conn){
+        clearTimeout(connecting[id].timer);
+        delete connecting[id];
+      }
+      const existing = connections[id];
+      if(existing && existing !== conn && existing.open){
+        if(initiatorOf(existing) < initiatorOf(conn)){ try{ conn.close(); }catch(e){} return; }
+        delete connections[id];
+        try{ existing.close(); }catch(e){}
+      }
+      connections[id] = conn;
+      lastSeen[id] = Date.now();
+      delete retry[id];
+      sendFullSyncTo(id);
+      if(pendingJoins[id]){
+        pendingJoins[id].forEach(function(listId){ safeSend(conn, { type: "join", listId: listId }); });
+        delete pendingJoins[id];
+      }
+      renderPeerCount();
+    });
+    conn.on("data", function(data){
+      if(connections[id] !== conn) return;
+      lastSeen[id] = Date.now();
+      handleMessage(id, data);
+    });
+    conn.on("close", function(){ dropConnection(conn); });
+    conn.on("error", function(){
+      const wasAttempt = connecting[id] && connecting[id].conn === conn;
+      dropConnection(conn);
+      if(wasAttempt) failAttempt(id);
+    });
+    conn.on("iceStateChanged", function(s){
+      if(s === "failed" || s === "closed") dropConnection(conn);
+    });
+  }
+
+  function connectTo(peerId, joinListId){
+    if(peerId === state.myId) return;
+    if(joinListId){
+      pendingJoins[peerId] = pendingJoins[peerId] || [];
+      if(pendingJoins[peerId].indexOf(joinListId) === -1) pendingJoins[peerId].push(joinListId);
+      delete retry[peerId];
+    }
+    if(connections[peerId]){
+      if(joinListId){
+        safeSend(connections[peerId], { type: "join", listId: joinListId });
+        delete pendingJoins[peerId];
+      }
+      return;
+    }
+    // If our peer isn't open yet, the "open" handler retries (pendingJoins included).
+    if(connecting[peerId] || !peer || !peer.open) return;
+    if(retry[peerId] && Date.now() < retry[peerId].next) return;
+    let conn;
+    try{ conn = peer.connect(peerId, { reliable: true }); }catch(e){ failAttempt(peerId); return; }
+    if(!conn){ failAttempt(peerId); return; }
+    conn._outbound = true;
+    connecting[peerId] = {
+      conn: conn,
+      timer: setTimeout(function(){ failAttempt(peerId); }, CONNECT_TIMEOUT_MS)
+    };
+    setupConnection(conn);
+  }
+
+  function connectToKnownPeers(){
+    Object.values(state.lists).forEach(function(list){
+      (list.peers || []).forEach(function(p){ connectTo(p); });
+    });
+    Object.keys(pendingJoins).forEach(function(p){ connectTo(p); });
+  }
+
+  // Heartbeat: detects connections that died silently (sleeping phones,
+  // network switches), recovers the signaling link and retries peers.
+  setInterval(function(){
+    const now = Date.now();
+    Object.keys(connections).forEach(function(id){
+      const conn = connections[id];
+      if(!conn.open || now - (lastSeen[id] || 0) > DEAD_AFTER_MS) dropConnection(conn);
+      else safeSend(conn, { type: "ping" });
+    });
+    if(peer && (peer.destroyed || peer.disconnected)) scheduleReconnect();
+    connectToKnownPeers();
+  }, HEARTBEAT_MS);
+
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible") reconnectNow();
+  });
+  window.addEventListener("online", reconnectNow);
+
+  function snapshot(list){
+    return {
+      id: list.id, name: list.name, nameUpdatedAt: list.nameUpdatedAt || 0,
+      items: list.items, peers: list.peers
+    };
+  }
+
+  function sendFullSyncTo(peerId){
+    const conn = connections[peerId];
+    if(!conn) return;
+    const lists = {};
+    Object.values(state.lists).forEach(function(list){
+      if((list.peers || []).indexOf(peerId) !== -1) lists[list.id] = snapshot(list);
+    });
+    if(Object.keys(lists).length) safeSend(conn, { type: "sync", lists: lists });
+  }
+
+  function broadcastList(list){
+    (list.peers || []).forEach(function(p){
+      if(p !== state.myId && connections[p]){
+        safeSend(connections[p], { type: "sync", lists: { [list.id]: snapshot(list) } });
+      }
+    });
+  }
+
+  function handleMessage(fromPeer, msg){
+    if(!msg || !msg.type || msg.type === "ping") return;
+    if(msg.type === "join"){
+      const list = state.lists[msg.listId];
+      if(list){
+        if(list.peers.indexOf(fromPeer) === -1) list.peers.push(fromPeer);
+        saveLists();
+        sendFullSyncTo(fromPeer);
+        broadcastList(list);
+        if(state.currentList === list.id) renderItems();
+        renderListBar();
+      }
+    } else if(msg.type === "sync"){
+      mergeIncomingLists(msg.lists);
+    }
+  }
+
+  function mergeIncomingLists(lists){
+    let touched = false;
+    Object.keys(lists).forEach(function(id){
+      if(state.deleted[id]) return; // removed on this device; don't resurrect it
+      const incoming = lists[id];
+      let local = state.lists[id];
+      if(!local){
+        state.lists[id] = {
+          id: incoming.id, name: incoming.name, nameUpdatedAt: incoming.nameUpdatedAt || 0,
+          items: incoming.items || [], peers: incoming.peers || []
+        };
+        touched = true;
+      } else {
+        if((incoming.nameUpdatedAt || 0) > (local.nameUpdatedAt || 0)){
+          local.name = incoming.name; local.nameUpdatedAt = incoming.nameUpdatedAt;
+        }
+        const byId = {};
+        local.items.forEach(function(i){ byId[i.id] = i; });
+        (incoming.items || []).forEach(function(inc){
+          const cur = byId[inc.id];
+          if(!cur || inc.updatedAt > cur.updatedAt) byId[inc.id] = inc;
+        });
+        local.items = Object.values(byId);
+        local.peers = Array.from(new Set((local.peers || []).concat(incoming.peers || [])));
+        touched = true;
+      }
+    });
+    if(touched){
+      saveLists();
+      renderListBar();
+      renderItems();
+      connectToKnownPeers();
+    }
+  }
+
+  function renderPeerCount(){
+    const dot = document.getElementById("statusdot");
+    dot.className = "dot" + (netStatus === "online" ? " online" : netStatus === "error" ? " error" : "");
+    dot.title = netStatus === "online" ? "Online" : netDetail;
+    const n = Object.keys(connections).length;
+    document.getElementById("peercount").textContent =
+      netStatus !== "online" ? "· " + netDetail : n ? "· " + n + " connected" : "";
+  }
+
+  // ---------- list CRUD ----------
+  function createList(name){
+    const id = uid("list");
+    state.lists[id] = { id: id, name: name, nameUpdatedAt: Date.now(), items: [], peers: [state.myId] };
+    saveLists();
+    state.currentList = id;
+    renderListBar(); renderItems();
+  }
+
+  function deleteList(id){
+    delete state.lists[id];
+    state.deleted[id] = true;
+    saveLists(); saveDeleted();
+    if(state.currentList === id) state.currentList = Object.keys(state.lists)[0] || null;
+    renderListBar(); renderItems();
+  }
+
+  function renameList(id, name){
+    const list = state.lists[id];
+    if(!list) return;
+    list.name = name; list.nameUpdatedAt = Date.now();
+    saveLists(); broadcastList(list); renderListBar(); renderItems();
+  }
+
+  // ---------- item CRUD ----------
+  function currentList(){ return state.currentList ? state.lists[state.currentList] : null; }
+
+  function addItem(text){
+    const list = currentList();
+    if(!list || !text.trim()) return;
+    const maxOrder = list.items.reduce(function(m, i){ return Math.max(m, i.order || 0); }, 0);
+    list.items.push({
+      id: uid("item"), text: text.trim(), checked: false, removed: false,
+      order: maxOrder + 1, updatedAt: Date.now(), attachment: null
+    });
+    saveLists(); broadcastList(list); renderItems();
+  }
+
+  function updateItem(itemId, patch){
+    const list = currentList();
+    if(!list) return;
+    const item = list.items.find(function(i){ return i.id === itemId; });
+    if(!item) return;
+    Object.assign(item, patch, { updatedAt: Date.now() });
+    saveLists(); broadcastList(list); renderItems();
+  }
+
+  function removeItem(itemId){ updateItem(itemId, { removed: true }); }
+
+  function moveItem(itemId, dir){
+    const list = currentList();
+    if(!list) return;
+    const visible = list.items.filter(function(i){ return !i.removed; }).sort(function(a,b){ return a.order - b.order; });
+    const idx = visible.findIndex(function(i){ return i.id === itemId; });
+    if(idx === -1) return;
+    const swapIdx = idx + dir;
+    if(swapIdx < 0 || swapIdx >= visible.length) return;
+    const a = visible[idx], b = visible[swapIdx];
+    const neighborOutside = dir === -1 ? visible[swapIdx - 1] : visible[swapIdx + 1];
+    let newOrder;
+    if(neighborOutside){
+      newOrder = (b.order + neighborOutside.order) / 2;
+    } else {
+      newOrder = dir === -1 ? b.order - 1 : b.order + 1;
+    }
+    a.order = newOrder; a.updatedAt = Date.now();
+    saveLists(); broadcastList(list); renderItems();
+  }
+
+  // ---------- rendering ----------
+  function renderListBar(){
+    const bar = document.getElementById("listbar");
+    bar.innerHTML = "";
+    Object.values(state.lists).forEach(function(list){
+      const chip = document.createElement("button");
+      chip.className = "chip" + (list.id === state.currentList ? " active" : "");
+      chip.textContent = list.name || "Untitled";
+      chip.onclick = function(){ state.currentList = list.id; renderListBar(); renderItems(); };
+      bar.appendChild(chip);
+    });
+    bar.hidden = !Object.keys(state.lists).length;
+
+    document.getElementById("main").hidden = !state.currentList;
+    document.getElementById("emptystate").hidden = !!state.currentList;
+  }
+
+  function renderItems(){
+    const list = currentList();
+    if(!list) return;
+    document.getElementById("listname").textContent = list.name;
+    document.getElementById("memberCount").textContent =
+      list.peers.length > 1 ? list.peers.length + " members" : "";
+    const ul = document.getElementById("items");
+    ul.innerHTML = "";
+    const visible = list.items.filter(function(i){ return !i.removed; }).sort(function(a,b){ return a.order - b.order; });
+    visible.forEach(function(item){
+      const li = document.createElement("li");
+      li.className = item.checked ? "checked" : "";
+
+      const updown = document.createElement("div");
+      updown.className = "updown";
+      const up = document.createElement("button"); up.textContent = "▲";
+      up.onclick = function(){ moveItem(item.id, -1); };
+      const down = document.createElement("button"); down.textContent = "▼";
+      down.onclick = function(){ moveItem(item.id, 1); };
+      updown.appendChild(up); updown.appendChild(down);
+      li.appendChild(updown);
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox"; chk.checked = item.checked;
+      chk.onchange = function(){ updateItem(item.id, { checked: chk.checked }); };
+      li.appendChild(chk);
+
+      const text = document.createElement("span");
+      text.className = "text"; text.textContent = item.text;
+      text.onclick = function(){
+        text.contentEditable = "true"; text.focus();
+        document.getSelection().selectAllChildren(text);
+      };
+      text.onblur = function(){
+        text.contentEditable = "false";
+        const val = text.textContent.trim();
+        if(val && val !== item.text) updateItem(item.id, { text: val });
+        else text.textContent = item.text;
+      };
+      text.onkeydown = function(e){ if(e.key === "Enter"){ e.preventDefault(); text.blur(); } };
+      li.appendChild(text);
+
+      if(item.attachment){
+        const img = document.createElement("img");
+        img.className = "thumb"; img.src = item.attachment;
+        img.onclick = function(){
+          document.getElementById("imgDialogImg").src = item.attachment;
+          document.getElementById("imgDialog").showModal();
+        };
+        li.appendChild(img);
+      }
+
+      const del = document.createElement("button");
+      del.className = "small danger"; del.textContent = "✕";
+      del.onclick = function(){ removeItem(item.id); };
+      li.appendChild(del);
+
+      ul.appendChild(li);
+    });
+  }
+
+  // ---------- dialogs: new list ----------
+  function openNewListDialog(){
+    document.getElementById("newListName").value = "";
+    document.getElementById("newListDialog").showModal();
+    document.getElementById("newListName").focus();
+  }
+  document.getElementById("newListBtn").onclick = openNewListDialog;
+  document.getElementById("newListCancel").onclick = function(){ document.getElementById("newListDialog").close(); };
+  document.getElementById("newListCreate").onclick = function(){
+    const name = document.getElementById("newListName").value.trim() || "Untitled list";
+    createList(name);
+    document.getElementById("newListDialog").close();
+  };
+
+  // ---------- dialogs: rename ----------
+  document.getElementById("renameBtn").onclick = function(){
+    const list = currentList(); if(!list) return;
+    document.getElementById("renameInput").value = list.name;
+    document.getElementById("renameDialog").showModal();
+  };
+  document.getElementById("renameCancel").onclick = function(){ document.getElementById("renameDialog").close(); };
+  document.getElementById("renameSave").onclick = function(){
+    const list = currentList(); if(!list) return;
+    const val = document.getElementById("renameInput").value.trim();
+    if(val) renameList(list.id, val);
+    document.getElementById("renameDialog").close();
+  };
+
+  document.getElementById("deleteListBtn").onclick = function(){
+    const list = currentList(); if(!list) return;
+    if(confirm('Remove "' + list.name + '" from your device? Others who have it will keep their copy.')){
+      deleteList(list.id);
+    }
+  };
+
+  // ---------- dialogs: share ----------
+  document.getElementById("shareBtn").onclick = function(){
+    const list = currentList(); if(!list) return;
+    const code = state.myId + "::" + list.id;
+    document.getElementById("shareCode").textContent = code;
+    const qrhost = document.getElementById("qrhost");
+    qrhost.innerHTML = "";
+    if(window.QRCode){
+      try{ new QRCode(qrhost, { text: code, width: 176, height: 176 }); }catch(e){}
+    }
+    document.getElementById("shareDialog").showModal();
+  };
+  document.getElementById("closeShareBtn").onclick = function(){ document.getElementById("shareDialog").close(); };
+  document.getElementById("copyCodeBtn").onclick = function(){
+    const code = document.getElementById("shareCode").textContent;
+    if(navigator.clipboard) navigator.clipboard.writeText(code).catch(function(){});
+    else {
+      const ta = document.createElement("textarea"); ta.value = code;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    const btn = document.getElementById("copyCodeBtn");
+    const old = btn.textContent; btn.textContent = "Copied!";
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  };
+
+  // ---------- dialogs: join ----------
+  document.getElementById("joinBtn").onclick = function(){
+    document.getElementById("joinCodeInput").value = "";
+    document.getElementById("joinStatus").textContent = "";
+    document.getElementById("joinDialog").showModal();
+  };
+  let joinPoll = null;
+  document.getElementById("joinCancel").onclick = function(){
+    clearInterval(joinPoll);
+    document.getElementById("joinDialog").close();
+  };
+  document.getElementById("joinConfirm").onclick = function(){
+    const raw = document.getElementById("joinCodeInput").value.trim();
+    const parts = raw.split("::");
+    if(parts.length !== 2){
+      document.getElementById("joinStatus").textContent = "That code doesn't look right.";
+      return;
+    }
+    const hostPeerId = parts[0].trim(), listId = parts[1].trim();
+    if(hostPeerId === state.myId){
+      document.getElementById("joinStatus").textContent = "That's your own list.";
+      return;
+    }
+    if(state.deleted[listId]){ delete state.deleted[listId]; saveDeleted(); }
+    document.getElementById("joinStatus").textContent = "Connecting…";
+    connectTo(hostPeerId, listId);
+    clearInterval(joinPoll);
+    let attempts = 0;
+    joinPoll = setInterval(function(){
+      attempts++;
+      if(state.lists[listId]){
+        clearInterval(joinPoll);
+        document.getElementById("joinStatus").textContent = "Joined!";
+        state.currentList = listId;
+        renderListBar(); renderItems();
+        setTimeout(function(){ document.getElementById("joinDialog").close(); }, 500);
+      } else if(attempts > 75){
+        clearInterval(joinPoll);
+        delete pendingJoins[hostPeerId];
+        document.getElementById("joinStatus").textContent = "Couldn't reach that device. Make sure it's online and try again.";
+      }
+    }, 400);
+  };
+
+  document.getElementById("scanBtn").onclick = function(){ document.getElementById("scanInput").click(); };
+  document.getElementById("scanInput").onchange = function(e){
+    const file = e.target.files[0];
+    if(!file || !window.jsQR) return;
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(data.data, canvas.width, canvas.height);
+      if(result && result.data){
+        document.getElementById("joinCodeInput").value = result.data;
+        document.getElementById("joinStatus").textContent = "QR read — tap Connect.";
+      } else {
+        document.getElementById("joinStatus").textContent = "Couldn't read a QR code in that image.";
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  };
+
+  // ---------- add item / attachment ----------
+  document.getElementById("additemform").onsubmit = function(e){
+    e.preventDefault();
+    const input = document.getElementById("newitem");
+    addItem(input.value);
+    input.value = "";
+    input.focus();
+  };
+  document.getElementById("attachPickBtn").onclick = function(){ document.getElementById("attachInput").click(); };
+  document.getElementById("attachInput").onchange = function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const list = currentList();
+    if(!list) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      addItem(document.getElementById("newitem").value.trim() || file.name);
+      const items = list.items.filter(function(i){ return !i.removed; }).sort(function(a,b){ return b.order - a.order; });
+      if(items[0]) updateItem(items[0].id, { attachment: reader.result });
+      document.getElementById("newitem").value = "";
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  document.getElementById("imgDialogClose").onclick = function(){ document.getElementById("imgDialog").close(); };
+
+  document.getElementById("emptyNewBtn").onclick = openNewListDialog;
+  document.getElementById("emptyJoinBtn").onclick = document.getElementById("joinBtn").onclick;
+
+  // Enter in a dialog's text field presses its primary button.
+  [["newListName", "newListCreate"], ["renameInput", "renameSave"], ["joinCodeInput", "joinConfirm"]].forEach(function(pair){
+    document.getElementById(pair[0]).addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ e.preventDefault(); document.getElementById(pair[1]).click(); }
+    });
+  });
+
+  // ---------- boot ----------
+  if(!window.Peer){
+    setStatus("error");
+    alert("Couldn't load the networking library (PeerJS). Check your internet connection and reload.");
+  } else {
+    initPeer();
+  }
+  state.currentList = Object.keys(state.lists)[0] || null;
+  renderListBar();
+  if(state.currentList) renderItems();
+})();
+</script>
+</body>
+</html>
