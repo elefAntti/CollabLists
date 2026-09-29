@@ -6,7 +6,7 @@
 <title>Collab Lists</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   :root{
     --bg:#f4f5f7; --card:#ffffff; --text:#1c1e21; --muted:#6b7280;
@@ -178,11 +178,12 @@
 <dialog id="shareDialog">
   <div class="dlg-inner">
     <h2>Share this list</h2>
-    <p class="hint">Send this code to someone, or let them scan the QR code. They'll tap "Join a list" and paste or scan it.</p>
+    <p class="hint">Send this link (WhatsApp, SMS, email…) or let them scan the QR code with their camera. Opening it takes them straight to joining this list.</p>
     <div class="code-box" id="shareCode"></div>
     <div id="qrhost"></div>
     <div class="row">
-      <button class="btn secondary full" id="copyCodeBtn">Copy code</button>
+      <button class="btn secondary full" id="copyCodeBtn">Copy link</button>
+      <button class="btn full" id="sendLinkBtn" hidden>Send…</button>
       <button class="btn full" id="closeShareBtn">Done</button>
     </div>
   </div>
@@ -191,7 +192,7 @@
 <dialog id="joinDialog">
   <div class="dlg-inner">
     <h2>Join a list</h2>
-    <input type="text" id="joinCodeInput" placeholder="Paste share code here">
+    <input type="text" id="joinCodeInput" placeholder="Paste share link or code here">
     <input type="file" id="scanInput" accept="image/*" capture="environment" hidden>
     <button class="btn secondary full" id="scanBtn">📷 Scan QR code</button>
     <p class="hint" id="joinStatus"></p>
@@ -722,24 +723,61 @@
     }
   };
 
+  // ---------- share codes and links ----------
+  // A share code is "<hostPeerId>::<listId>". The share link carries it in the
+  // URL fragment, so the code never reaches the hosting server's logs.
+  function shareCodeFor(list){ return state.myId + "::" + list.id; }
+
+  function shareLinkFor(list){
+    const base = location.origin + location.pathname;
+    return base + "#join=" + encodeURIComponent(shareCodeFor(list));
+  }
+
+  // Accepts a bare code, a full share link, or a link with junk around it
+  // (messaging apps like to append punctuation), and returns [peerId, listId].
+  function parseShareCode(raw){
+    let s = (raw || "").trim();
+    const m = /[#?&]join=([^&\s]+)/.exec(s);
+    if(m){ try{ s = decodeURIComponent(m[1]); }catch(e){ s = m[1]; } }
+    const parts = s.split("::");
+    if(parts.length !== 2) return null;
+    const hostPeerId = parts[0].trim(), listId = parts[1].trim();
+    if(!hostPeerId || !listId) return null;
+    return [hostPeerId, listId];
+  }
+
   // ---------- dialogs: share ----------
   document.getElementById("shareBtn").onclick = function(){
     const list = currentList(); if(!list) return;
-    const code = state.myId + "::" + list.id;
-    document.getElementById("shareCode").textContent = code;
+    const link = shareLinkFor(list);
+    document.getElementById("shareCode").textContent = link;
     const qrhost = document.getElementById("qrhost");
     qrhost.innerHTML = "";
     if(window.QRCode){
-      try{ new QRCode(qrhost, { text: code, width: 176, height: 176 }); }catch(e){}
+      try{
+        new QRCode(qrhost, {
+          text: link, width: 176, height: 176,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }catch(e){}
     }
+    document.getElementById("sendLinkBtn").hidden = !navigator.share;
     document.getElementById("shareDialog").showModal();
   };
   document.getElementById("closeShareBtn").onclick = function(){ document.getElementById("shareDialog").close(); };
+  document.getElementById("sendLinkBtn").onclick = function(){
+    const list = currentList(); if(!list || !navigator.share) return;
+    navigator.share({
+      title: list.name,
+      text: 'Join my list "' + list.name + '"',
+      url: shareLinkFor(list)
+    }).catch(function(){});
+  };
   document.getElementById("copyCodeBtn").onclick = function(){
-    const code = document.getElementById("shareCode").textContent;
-    if(navigator.clipboard) navigator.clipboard.writeText(code).catch(function(){});
+    const link = document.getElementById("shareCode").textContent;
+    if(navigator.clipboard) navigator.clipboard.writeText(link).catch(function(){});
     else {
-      const ta = document.createElement("textarea"); ta.value = code;
+      const ta = document.createElement("textarea"); ta.value = link;
       document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
     }
     const btn = document.getElementById("copyCodeBtn");
@@ -748,26 +786,35 @@
   };
 
   // ---------- dialogs: join ----------
-  document.getElementById("joinBtn").onclick = function(){
-    document.getElementById("joinCodeInput").value = "";
+  function openJoinDialog(prefill){
+    document.getElementById("joinCodeInput").value = prefill || "";
     document.getElementById("joinStatus").textContent = "";
-    document.getElementById("joinDialog").showModal();
-  };
+    const dlg = document.getElementById("joinDialog");
+    if(!dlg.open) dlg.showModal();
+  }
+  document.getElementById("joinBtn").onclick = function(){ openJoinDialog(""); };
   let joinPoll = null;
   document.getElementById("joinCancel").onclick = function(){
     clearInterval(joinPoll);
     document.getElementById("joinDialog").close();
   };
-  document.getElementById("joinConfirm").onclick = function(){
-    const raw = document.getElementById("joinCodeInput").value.trim();
-    const parts = raw.split("::");
-    if(parts.length !== 2){
+  function startJoin(raw){
+    const parsed = parseShareCode(raw);
+    if(!parsed){
       document.getElementById("joinStatus").textContent = "That code doesn't look right.";
       return;
     }
-    const hostPeerId = parts[0].trim(), listId = parts[1].trim();
+    const hostPeerId = parsed[0], listId = parsed[1];
     if(hostPeerId === state.myId){
       document.getElementById("joinStatus").textContent = "That's your own list.";
+      return;
+    }
+    if(state.lists[listId]){
+      clearInterval(joinPoll);
+      state.currentList = listId;
+      renderListBar(); renderItems();
+      document.getElementById("joinStatus").textContent = "You already have this list.";
+      setTimeout(function(){ document.getElementById("joinDialog").close(); }, 800);
       return;
     }
     if(state.deleted[listId]){ delete state.deleted[listId]; saveDeleted(); }
@@ -789,28 +836,76 @@
         document.getElementById("joinStatus").textContent = "Couldn't reach that device. Make sure it's online and try again.";
       }
     }, 400);
+  }
+  document.getElementById("joinConfirm").onclick = function(){
+    startJoin(document.getElementById("joinCodeInput").value);
   };
 
-  document.getElementById("scanBtn").onclick = function(){ document.getElementById("scanInput").click(); };
-  document.getElementById("scanInput").onchange = function(e){
-    const file = e.target.files[0];
-    if(!file || !window.jsQR) return;
-    const img = new Image();
-    img.onload = function(){
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = jsQR(data.data, canvas.width, canvas.height);
+  document.getElementById("scanBtn").onclick = function(){
+    if(!window.jsQR){
+      document.getElementById("joinStatus").textContent =
+        "QR scanning didn't load. Paste the link instead, or reload with a connection.";
+      return;
+    }
+    document.getElementById("scanInput").click();
+  };
+
+  // Phone photos are far bigger than jsQR needs, and a 12-megapixel canvas can
+  // blow past mobile canvas limits (Safari then hands back a blank bitmap).
+  // Try a couple of scales: the smaller one is fast, the larger rescues
+  // codes that are small within the frame.
+  function decodeQRFromImage(img){
+    const status = document.getElementById("joinStatus");
+    const sizes = [1024, 1800];
+    for(let i = 0; i < sizes.length; i++){
+      const max = sizes[i];
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      let data;
+      try{
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, w, h);
+        data = ctx.getImageData(0, 0, w, h);
+      }catch(err){ continue; }
+      const result = jsQR(data.data, w, h, { inversionAttempts: "attemptBoth" });
       if(result && result.data){
         document.getElementById("joinCodeInput").value = result.data;
-        document.getElementById("joinStatus").textContent = "QR read — tap Connect.";
-      } else {
-        document.getElementById("joinStatus").textContent = "Couldn't read a QR code in that image.";
+        if(parseShareCode(result.data)){
+          status.textContent = "QR read — connecting…";
+          startJoin(result.data);
+        } else {
+          status.textContent = "That QR code isn't a Collab Lists share link.";
+        }
+        return;
       }
+      if(scale === 1) break; // already used the full image; a retry adds nothing
+    }
+    status.textContent = "Couldn't read a QR code in that image. Try again, closer and in focus.";
+  }
+
+  document.getElementById("scanInput").onchange = function(e){
+    const file = e.target.files[0];
+    e.target.value = ""; // so picking the same photo again still fires onchange
+    if(!file) return;
+    if(!window.jsQR){
+      document.getElementById("joinStatus").textContent = "QR scanning didn't load. Paste the link instead.";
+      return;
+    }
+    document.getElementById("joinStatus").textContent = "Reading…";
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function(){
+      try{ decodeQRFromImage(img); }
+      finally{ URL.revokeObjectURL(url); }
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      document.getElementById("joinStatus").textContent = "Couldn't open that image.";
+    };
+    img.src = url;
   };
 
   // ---------- add item / attachment ----------
@@ -860,6 +955,18 @@
   state.currentList = Object.keys(state.lists)[0] || null;
   renderListBar();
   if(state.currentList) renderItems();
+
+  // A share link (…/#join=<code>) opens the join dialog and connects straight away.
+  function consumeJoinLink(){
+    const code = parseShareCode(location.hash) || parseShareCode(location.search);
+    if(!code) return;
+    // Drop the fragment so a reload doesn't re-trigger the join.
+    history.replaceState(null, "", location.pathname + location.search.replace(/[?&]join=[^&]*/, ""));
+    openJoinDialog(code[0] + "::" + code[1]);
+    startJoin(code[0] + "::" + code[1]);
+  }
+  window.addEventListener("hashchange", consumeJoinLink);
+  consumeJoinLink();
 })();
 </script>
 </body>
