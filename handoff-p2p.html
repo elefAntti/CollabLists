@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src https: wss:; img-src data: blob:; base-uri 'none'; form-action 'none'">
+<title>Handoff P2P</title>
+<style>
+:root{--bg:#f2f5f6;--ink:#0f1f2a;--mut:#5d6f7a;--line:#d3dce0;--acc:#1f4ed8;--ok:#16794c;--warn:#b4540a;--bad:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#0e171d;--ink:#e8eff2;--mut:#8ba0ab;--line:#26363f;--acc:#7ea1ff;--ok:#5fcf9a;--warn:#f0a15e;--bad:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.5rem;margin:.2em 0 .6em}h2{font-size:1rem;margin:1.6em 0 .4em;color:var(--mut);font-weight:600}p{margin:.4em 0}
+.mut{color:var(--mut);font-size:.9rem}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.drop{display:block;border:2px dashed var(--acc);border-radius:14px;padding:26px 14px;text-align:center;font-weight:600;color:var(--acc);cursor:pointer}
+.drop.over{background:color-mix(in srgb,var(--acc) 12%,transparent)}.drop input{display:none}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.item .n{flex:1;word-break:break-all}.item a{color:var(--acc);font-weight:600}
+button{font:inherit;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:var(--bg)}button.d{color:var(--bad)}
+progress{width:100%;height:8px}.row{padding:6px 0}.qr{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.qr img{width:200px;height:200px;background:#fff;border-radius:10px;image-rendering:pixelated}
+.link{word-break:break-all;font:13px ui-monospace,monospace}.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+'use strict';
+/* ---------- settings: self-host signaling + add a TURN server here for reliability ---------- */
+const CONFIG = {
+  peer: {
+    // host: 'peer.example.com', port: 443, path: '/', secure: true,   // your own PeerJS server
+    config: { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      // { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'pass' },
+    ] },
+  },
+  joinMinutes: 10,   // how long a join link is valid
+  maxGuests: 5,      // devices per link
+  chunk: 15000,      // plaintext bytes per message (stays under the 16 KB cross-browser limit)
+  memLimit: 1e9,     // max file size when it has to be held in memory (no save folder)
+};
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+function h(t, a = {}, ...c) { const e = document.createElement(t); for (const k in a) k.startsWith('on') ? e[k] = a[k] : e.setAttribute(k, a[k]); e.append(...c); return e; }
+const enc = new TextEncoder(), dec = new TextDecoder(), sleep = ms => new Promise(r => setTimeout(r, ms));
+const sz = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+const b64u = b => btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+const cat = (...a) => { const o = new Uint8Array(a.reduce((s, x) => s + x.length, 0)); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
+const safeName = n => (String(n).split(/[\\/]/).pop().replace(/[\x00-\x1f<>:"|?*]/g, '_').trim().slice(0, 150)) || 'file';
+const devName = () => { const u = navigator.userAgent; return (/iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows PC' : /Mac/.test(u) ? 'Mac' : 'Device'); };
+
+/* ---------- crypto: HKDF from the link secret, HMAC proofs, AES-GCM with counter nonces ---------- */
+async function derive(secret, salt, info, kind) {
+  const k = await crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']);
+  const mac = kind == 'mac';
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt, info: enc.encode(info) }, k,
+    mac ? { name: 'HMAC', hash: 'SHA-256', length: 256 } : { name: 'AES-GCM', length: 256 }, false,
+    mac ? ['sign', 'verify'] : ['encrypt', 'decrypt']);
+}
+const sign = async (k, d) => new Uint8Array(await crypto.subtle.sign('HMAC', k, d));
+const verify = (k, sig, d) => crypto.subtle.verify('HMAC', k, sig, d);
+const ZERO = new Uint8Array(32);
+
+class Chan {  // encrypted, ordered channel. Nonce = direction + message counter, so replays/reorders fail to decrypt.
+  constructor(conn, key, sd, rd, app) {
+    Object.assign(this, { c: conn, key, sd, rd, app, sc: 0, rc: 0, q: Promise.resolve(), rq: Promise.resolve(), w: new Map(), rx: new Map(), x: 0, wanted: 0 });
+  }
+  iv(d, n) { const v = new Uint8Array(12); v[0] = d; new DataView(v.buffer).setUint32(8, n); return v; }
+  send(type, pl) {
+    const p = this.q.then(async () => {
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: this.iv(this.sd, this.sc++) }, this.key, cat(Uint8Array.of(type), pl));
+      const dc = this.c.dataChannel; while (dc && dc.bufferedAmount > (1 << 20)) await sleep(15);  // backpressure
+      this.c.send(ct);
+    });
+    this.q = p.catch(() => {}); return p;
+  }
+  json(o) { return this.send(1, enc.encode(JSON.stringify(o))); }
+  push(d) {
+    this.rq = this.rq.then(async () => {
+      const pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.iv(this.rd, this.rc++) }, this.key, d));
+      await onMsg(this, pt[0], pt.subarray(1));
+    }).catch(() => this.c.close());
+  }
+}
+
+/* ---------- state + ui ---------- */
+const S = { mode: '', guests: [], shared: new Map(), recv: [], remote: [], status: '', statusCls: 'mut', ch: null };
+let dirHandle = null, H = null, wake = null;
+const app = $('#app'), prog = h('div'), dyn = h('div');
+
+function row(label) {
+  const r = h('div', { class: 'row' }), m = h('div', {}, label), b = h('progress', { max: 1, value: 0 }); r.append(m, b); prog.append(r);
+  return { set: f => b.value = f, end: (t, c) => { b.remove(); m.textContent = label + ' - ' + t; m.className = c; setTimeout(() => r.remove(), c == 'ok' ? 5000 : 20000); } };
+}
+function files(items, acts) {
+  return items.length ? h('div', {}, ...items.map(f => h('div', { class: 'item' }, h('span', { class: 'n' }, f.name), h('span', { class: 'mut' }, sz(f.size)), ...(acts ? acts(f) : []))))
+    : h('p', { class: 'mut' }, 'Nothing here yet.');
+}
+const recvList = () => files(S.recv, f => [h('a', { href: f.url, download: f.name }, 'Save')]);
+function keepAwake() { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wake = l).catch(() => {}); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState == 'visible' && S.ch || H) keepAwake(); });
+
+/* ---------- file transfer (shared by both sides) ---------- */
+async function makeSink(name) {
+  if (dirHandle) {
+    let nm = name, i = 0;
+    for (;;) { try { await dirHandle.getFileHandle(nm); nm = name.replace(/(\.[^.]*)?$/, ` (${++i})$1`); } catch (e) { break; } }
+    const w = await (await dirHandle.getFileHandle(nm, { create: true })).createWritable();
+    return { write: b => w.write(b), close: async () => { await w.close(); return null; }, abort: () => w.abort().catch(() => {}) };
+  }
+  const parts = [];
+  return { write: b => { parts.push(b.slice()); }, close: async () => URL.createObjectURL(new Blob(parts)), abort: () => { parts.length = 0; } };
+}
+
+async function sendFile(ch, file) {
+  const x = ++ch.x, r = row('Sending ' + file.name);
+  const go = Promise.race([new Promise(res => ch.w.set(x, res)), sleep(20000).then(() => 'no answer')]);
+  try {
+    await ch.json({ t: 'offer', x, name: file.name, size: file.size });
+    const ans = await go; if (ans !== true) return r.end('refused (' + ans + ')', 'bad');
+    let off = 0, n = 0;
+    while (off < file.size) {
+      const b = new Uint8Array(await file.slice(off, off + CONFIG.chunk).arrayBuffer()), hd = new Uint8Array(4);
+      new DataView(hd.buffer).setUint32(0, x); await ch.send(2, cat(hd, b)); off += b.length; n++; r.set(off / file.size);
+    }
+    await ch.json({ t: 'end', x, n, size: file.size }); r.end('sent', 'ok');
+  } catch (e) { r.end('failed', 'bad'); }
+}
+
+async function onMsg(ch, type, pl) {
+  if (type == 2) {  // file chunk
+    const s = ch.rx.get(new DataView(pl.buffer, pl.byteOffset).getUint32(0)); if (!s) throw 0;
+    const b = pl.subarray(4); s.got += b.length; s.n++; if (s.got > s.size) throw 0;
+    await s.sink.write(b); s.r.set(s.size ? s.got / s.size : 1); return;
+  }
+  const m = JSON.parse(dec.decode(pl));
+  if (m.t == 'offer') {
+    const nm = safeName(m.name), why = ch.accept();
+    if (why || !(m.size >= 0) || m.size > (dirHandle ? 4e12 : CONFIG.memLimit)) return ch.json({ t: 'reject', x: m.x, why: why || 'too large for memory - choose a save folder' });
+    ch.rx.set(m.x, { size: m.size, got: 0, n: 0, name: nm, r: row('Receiving ' + nm), sink: await makeSink(nm) });
+    return ch.json({ t: 'go', x: m.x });
+  }
+  if (m.t == 'go' || m.t == 'reject') { const w = ch.w.get(m.x); ch.w.delete(m.x); if (w) w(m.t == 'go' ? true : m.why || 'refused'); return; }
+  if (m.t == 'end') {
+    const s = ch.rx.get(m.x); ch.rx.delete(m.x); if (!s) return;
+    if (s.got !== m.size || s.n !== m.n || s.got !== s.size) { await s.sink.abort(); return s.r.end('incomplete', 'bad'); }
+    const url = await s.sink.close(); s.r.end(url ? 'received' : 'saved to folder', 'ok');
+    if (url) { S.recv.push({ name: s.name, size: s.size, url }); render(); } return;
+  }
+  return ch.app(m);
+}
+
+/* ---------- HOST ---------- */
+function newSecret() {
+  H.secret = rnd(16); H.exp = Date.now() + CONFIG.joinMinutes * 60000; H.left = CONFIG.maxGuests;
+  clearTimeout(H.t); H.t = setTimeout(render, CONFIG.joinMinutes * 60000 + 100);
+}
+const joinUrl = () => location.origin + location.pathname + '#j=' + H.id + '.' + b64u(H.secret);
+const sendList = g => g.ch.json({ t: 'list', files: [...S.shared].map(([id, { file }]) => ({ id, name: file.name, size: file.size })) });
+const broadcast = () => S.guests.filter(g => g.status == 'ok').forEach(sendList);
+
+function startHost() {
+  S.mode = 'host'; H = { id: 'h' + hex(rnd(16)), accept: true, ready: false }; newSecret(); keepAwake();
+  const peer = H.peer = new Peer(H.id, CONFIG.peer);
+  peer.on('open', () => { H.ready = true; render(); });
+  peer.on('error', e => { S.status = 'Signaling problem: ' + e.type; S.statusCls = 'bad'; render(); });
+  peer.on('connection', hostConn);
+  window.onbeforeunload = () => true;
+  render();
+}
+
+function hostConn(conn) {
+  if (S.guests.filter(x => x.status == 'auth').length > 3) return conn.close();
+  const g = { conn, name: 'Connecting...', status: 'auth', ch: null }; S.guests.push(g);
+  let stage = 0, Ng, Nh, auth, q = Promise.resolve(); const secret = H.secret;
+  const kill = () => { try { conn.close(); } catch (e) {} };
+  const timer = setTimeout(() => { if (g.status == 'auth') kill(); }, 15000);
+  conn.on('close', () => { clearTimeout(timer); S.guests = S.guests.filter(x => x !== g); render(); });
+  conn.on('data', d => {
+    if (g.ch) return g.ch.push(d);
+    q = q.then(async () => {
+      if (g.ch) return g.ch.push(d);   // encrypted message that arrived while the handshake was finishing
+      if (typeof d !== 'string') throw 0;
+      const m = JSON.parse(d);
+      if (stage == 0 && m.h == 1) {
+        if (Date.now() > H.exp || H.left <= 0) throw 0;
+        Ng = unb64u(m.n); if (Ng.length != 16) throw 0; Nh = rnd(16); stage = 1;
+        auth = await derive(secret, ZERO, 'auth', 'mac');
+        conn.send(JSON.stringify({ h: 2, n: b64u(Nh), p: b64u(await sign(auth, cat(enc.encode('H'), Ng, Nh))) }));
+      } else if (stage == 1 && m.h == 3) {
+        if (!await verify(auth, unb64u(m.p), cat(enc.encode('G'), Nh, Ng)) || H.left <= 0) throw 0;
+        H.left--; stage = 2; clearTimeout(timer);
+        g.ch = new Chan(conn, await derive(secret, cat(Ng, Nh), 'enc', 'aes'), 1, 2, m => hostApp(g, m));
+        g.ch.accept = () => g.status == 'ok' ? (H.accept ? null : 'PC is not accepting uploads') : 'not approved';
+        g.status = 'unnamed';
+      } else throw 0;
+    }).catch(kill);
+  });
+}
+function hostApp(g, m) {
+  if (m.t == 'hi' && g.status == 'unnamed') { g.name = String(m.name).slice(0, 40); g.status = 'pending'; render(); }
+  else if (m.t == 'get' && g.status == 'ok') { const f = S.shared.get(m.id); if (f) sendFile(g.ch, f.file); }
+}
+const approve = g => { g.status = 'ok'; g.ch.json({ t: 'ok' }); sendList(g); render(); };
+const deny = g => { g.ch.json({ t: 'no' }).then(() => sleep(300)).finally(() => g.conn.close()); };
+
+/* ---------- GUEST ---------- */
+function startGuest(hostId, secret) {
+  S.mode = 'guest'; setStatus('Connecting...', 'mut'); keepAwake();
+  const peer = new Peer(undefined, CONFIG.peer);
+  const fail = t => { setStatus(t, 'bad'); try { peer.destroy(); } catch (e) {} };
+  peer.on('error', e => fail(e.type == 'peer-unavailable' ? 'The host is not online, or the session ended.' : 'Connection problem: ' + e.type));
+  peer.on('open', () => {
+    const conn = peer.connect(hostId, { serialization: 'raw', reliable: true });
+    const Ng = rnd(16); let Nh, ch = null, q = Promise.resolve();
+    const timer = setTimeout(() => { if (!ch || S.status.startsWith('Verif')) fail('Timed out. Is the host page open?'); }, 20000);
+    conn.on('open', () => { setStatus('Verifying...', 'mut'); conn.send(JSON.stringify({ h: 1, n: b64u(Ng) })); });
+    conn.on('close', () => { clearTimeout(timer); S.ch = null; if (S.statusCls != 'bad') setStatus('Disconnected.', 'bad'); });
+    conn.on('data', d => {
+      if (ch) return ch.push(d);
+      q = q.then(async () => {
+        if (ch) return ch.push(d);
+        const m = JSON.parse(d), auth = await derive(secret, ZERO, 'auth', 'mac'); Nh = unb64u(m.n);
+        if (m.h != 2 || Nh.length != 16 || !await verify(auth, unb64u(m.p), cat(enc.encode('H'), Ng, Nh))) throw 0;
+        conn.send(JSON.stringify({ h: 3, p: b64u(await sign(auth, cat(enc.encode('G'), Nh, Ng))) }));
+        ch = S.ch = new Chan(conn, await derive(secret, cat(Ng, Nh), 'enc', 'aes'), 2, 1, m => guestApp(ch, m));
+        ch.accept = () => ch.wanted > 0 ? (ch.wanted--, null) : 'unexpected file';
+        ch.json({ t: 'hi', name: devName() }); setStatus('Waiting for the PC to approve this device...', 'warn');
+      }).catch(() => fail('Could not verify the host. The link may be wrong or expired.'));
+    });
+  });
+}
+function guestApp(ch, m) {
+  if (m.t == 'ok') setStatus('Connected. Transfers are end-to-end encrypted.', 'ok');
+  else if (m.t == 'no') { setStatus('The PC blocked this device.', 'bad'); }
+  else if (m.t == 'list') { S.remote = m.files.slice(0, 500).map(f => ({ id: String(f.id), name: safeName(f.name), size: +f.size || 0 })); render(); }
+}
+function setStatus(t, c) { S.status = t; S.statusCls = c; render(); }
+
+/* ---------- render ---------- */
+function picker(label, onFiles) {
+  const inp = h('input', { type: 'file', multiple: '', onchange: () => { const f = [...inp.files]; inp.value = ''; onFiles(f); } });
+  const l = h('label', { class: 'drop' }, label, inp);
+  l.ondragover = e => { e.preventDefault(); l.classList.add('over'); }; l.ondragleave = () => l.classList.remove('over');
+  l.ondrop = e => { e.preventDefault(); l.classList.remove('over'); onFiles([...e.dataTransfer.files]); };
+  return l;
+}
+function render() {
+  if (S.mode == 'host') {
+    const live = H.ready && Date.now() < H.exp && H.left > 0;
+    const url = live ? joinUrl() : '', qr = live && window.qrcode ? (() => { const q = qrcode(0, 'M'); q.addData(url); q.make(); return q.createDataURL(6, 2); })() : null;
+    dyn.replaceChildren(
+      h('div', { class: 'qr' }, ...(qr ? [h('img', { src: qr, alt: 'QR code to join' })] : []),
+        h('div', {}, h('p', {}, !H.ready ? 'Connecting to signaling server...' : live ? 'Scan with your phone, or open:' : 'The join link expired or is used up.'),
+          live ? h('p', { class: 'link' }, url) : '',
+          live ? h('p', { class: 'mut' }, 'Valid until ' + new Date(H.exp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' for ' + H.left + ' more device(s). Keep this tab open.') : '',
+          S.status ? h('p', { class: S.statusCls }, S.status) : '',
+          h('div', { class: 'bar' }, h('button', { class: 'p', onclick: () => { newSecret(); render(); } }, 'New link'),
+            ...(live ? [h('button', { onclick: () => navigator.clipboard.writeText(url) }, 'Copy link')] : []),
+            h('button', { onclick: () => { H.accept = !H.accept; render(); } }, H.accept ? 'Stop accepting uploads' : 'Accept uploads'),
+            ...(window.showDirectoryPicker ? [h('button', { onclick: async () => { try { dirHandle = await showDirectoryPicker({ mode: 'readwrite' }); render(); } catch (e) {} } }, dirHandle ? 'Save folder: ' + dirHandle.name : 'Choose save folder')] : []),
+            h('button', { class: 'd', onclick: () => { if (confirm('End the session? Shared files become unreachable.')) { window.onbeforeunload = null; H.peer.destroy(); S.mode = ''; S.guests = []; S.shared.clear(); render(); } } }, 'End session')))),
+      h('h2', {}, 'Devices'),
+      S.guests.filter(g => g.status != 'auth' && g.status != 'unnamed').length ? h('div', {}, ...S.guests.filter(g => g.ch && g.status != 'unnamed').map(g => h('div', { class: 'item' },
+        h('span', { class: 'n' }, g.name), h('span', { class: g.status == 'ok' ? 'ok' : 'warn' }, g.status == 'ok' ? 'connected' : 'wants to join'),
+        ...(g.status == 'pending' ? [h('button', { class: 'p', onclick: () => approve(g) }, 'Approve'), h('button', { class: 'd', onclick: () => deny(g) }, 'Block')]
+          : [h('button', { class: 'd', onclick: () => g.conn.close() }, 'Remove')])))) : h('p', { class: 'mut' }, 'No devices yet.'),
+      h('h2', {}, 'Shared with guests'),
+      picker('Add files guests can download (or drop them here)', fs => { fs.forEach(f => S.shared.set(hex(rnd(8)), { file: f })); render(); broadcast(); }),
+      files([...S.shared].map(([id, { file }]) => ({ id, name: file.name, size: file.size })), f => [h('button', { class: 'd', onclick: () => { S.shared.delete(f.id); render(); broadcast(); } }, 'Stop sharing')]),
+      h('h2', {}, 'Received from guests'),
+      h('p', { class: 'mut' }, dirHandle ? 'Saving straight into the folder you chose.' : 'Kept in this tab\'s memory until you save them. Choose a save folder for big files.'), recvList());
+  } else if (S.mode == 'guest') {
+    const ok = S.ch && S.statusCls == 'ok';
+    dyn.replaceChildren(h('p', { class: S.statusCls }, S.status),
+      ...(ok ? [picker('Send files to the PC', fs => { keepAwake(); (async () => { for (const f of fs) await sendFile(S.ch, f); })(); }),
+        h('h2', {}, 'From the PC'),
+        files(S.remote, f => [h('button', { class: 'p', onclick: () => { S.ch.wanted++; S.ch.json({ t: 'get', id: f.id }); } }, 'Get')]),
+        h('h2', {}, 'Received'), recvList()] : []));
+  } else {
+    dyn.replaceChildren(h('p', {}, 'Send files between your devices over an encrypted peer-to-peer link. Nothing is uploaded to a server and nothing is stored once the host tab closes.'),
+      h('div', { class: 'bar' }, h('button', { class: 'p', onclick: startHost }, 'Start a session on this device')),
+      h('p', { class: 'mut' }, 'To join someone else\'s session, scan their QR code.'));
+  }
+}
+
+/* ---------- boot ---------- */
+app.append(h('h1', {}, 'Handoff'), dyn, prog);
+const m = /^#j=(h[0-9a-f]{32})\.([A-Za-z0-9_-]{22})$/.exec(location.hash);
+history.replaceState(null, '', location.pathname + location.search);   // keep the secret out of history/reload
+if (m) startGuest(m[1], unb64u(m[2])); else render();
+</script>
+</body>
+</html>
