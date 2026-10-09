@@ -2,30 +2,78 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1117" media="(prefers-color-scheme: dark)">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src https: wss:; img-src data: blob:; base-uri 'none'; form-action 'none'">
-<title>Handoff P2P</title>
+<title>Handoff</title>
 <style>
-:root{--bg:#f2f5f6;--ink:#0f1f2a;--mut:#5d6f7a;--line:#d3dce0;--acc:#1f4ed8;--ok:#16794c;--warn:#b4540a;--bad:#b3261e}
-@media(prefers-color-scheme:dark){:root{--bg:#0e171d;--ink:#e8eff2;--mut:#8ba0ab;--line:#26363f;--acc:#7ea1ff;--ok:#5fcf9a;--warn:#f0a15e;--bad:#ff8a80}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
-h1{font-size:1.5rem;margin:.2em 0 .6em}h2{font-size:1rem;margin:1.6em 0 .4em;color:var(--mut);font-weight:600}p{margin:.4em 0}
-.mut{color:var(--mut);font-size:.9rem}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.drop{display:block;border:2px dashed var(--acc);border-radius:14px;padding:26px 14px;text-align:center;font-weight:600;color:var(--acc);cursor:pointer}
-.drop.over{background:color-mix(in srgb,var(--acc) 12%,transparent)}.drop input{display:none}
-.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
-.item .n{flex:1;word-break:break-all}.item a{color:var(--acc);font-weight:600}
-button{font:inherit;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
-button.p{background:var(--acc);border-color:var(--acc);color:var(--bg)}button.d{color:var(--bad)}
-progress{width:100%;height:8px}.row{padding:6px 0}.qr{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
-.qr img{width:200px;height:200px;background:#fff;border-radius:10px;image-rendering:pixelated}
-.link{word-break:break-all;font:13px ui-monospace,monospace}.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+:root{--bg:#f4f6f8;--card:#fff;--ink:#14212b;--mut:#64748b;--line:#e3e8ee;--acc:#2563eb;--acc-ink:#fff;--acc-soft:#eaf0ff;--ok:#15803d;--ok-soft:#e7f6ec;--warn:#b45309;--warn-soft:#fdf3e2;--bad:#b91c1c;--bad-soft:#fdecec;--shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.06)}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1117;--card:#131c24;--ink:#e6edf3;--mut:#8b9aab;--line:#223040;--acc:#6b9bff;--acc-ink:#0b1117;--acc-soft:#17243b;--ok:#4ade80;--ok-soft:#12291b;--warn:#fbbf24;--warn-soft:#2e230d;--bad:#f87171;--bad-soft:#341616;--shadow:none}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:560px;margin:0 auto;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem;letter-spacing:-.01em}
+.logo{width:34px;height:34px;border-radius:10px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center}
+main{max-width:560px;margin:0 auto;padding:0 16px calc(28px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:12px 0;box-shadow:var(--shadow)}
+.card h2{margin:0 0 12px;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:700}
+.card h3{margin:4px 0 6px;font-size:1.15rem}
+.head{display:flex;align-items:center;justify-content:space-between;margin:-6px 0 6px}.head h2{margin:0}
+.hero h1{font-size:1.65rem;line-height:1.2;margin:2px 0 8px;letter-spacing:-.02em}
+.center{text-align:center}.center .row{justify-content:center}
+.mut{color:var(--mut)}.small{font-size:.86rem}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+p{margin:.4em 0}
+.btn{appearance:none;font:inherit;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:active{transform:scale(.97)}.btn:disabled{opacity:.5;cursor:default}
+.btn.p{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.btn.d{color:var(--bad)}.btn.ghost{border-color:transparent;background:transparent;color:var(--acc)}
+.btn.block{width:100%}.btn.sm{min-height:36px;padding:0 12px;border-radius:10px;font-size:.9rem}
+.btn.icon{min-height:36px;width:36px;padding:0;border-radius:10px;border-color:transparent;background:transparent;color:var(--mut)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--line);color:var(--mut)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.ic{display:inline-flex;flex:none}.ic svg{width:20px;height:20px}
+.qrbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+.qrbox img{width:min(240px,68vw);aspect-ratio:1;background:#fff;padding:12px;border-radius:16px;border:1px solid var(--line);image-rendering:pixelated;margin:4px 0 6px}
+.drop{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;padding:26px 16px;border:2px dashed color-mix(in srgb,var(--acc) 40%,var(--line));border-radius:16px;background:var(--acc-soft);color:var(--acc);font-weight:600;cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
+.drop .ic svg{width:30px;height:30px}.drop .big{font-size:1.05rem}.drop .small{font-weight:400;color:var(--mut)}
+.drop.over{border-style:solid;border-color:var(--acc)}.drop.off{cursor:default;color:var(--mut);background:transparent;border-color:var(--line)}
+.dev{display:flex;align-items:center;gap:12px;padding:8px 0}.dev+.dev{border-top:1px solid var(--line)}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);flex:none}
+.grow{flex:1;min-width:0}.name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;border-radius:16px;padding:12px 16px;margin:12px 0;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+.alert .dev{flex:1 1 200px;padding:0}.alert .av{background:var(--card)}
+.file{display:flex;align-items:flex-start;gap:12px;padding:12px 0}.file+.file{border-top:1px solid var(--line)}
+.thumb{width:46px;height:46px;border-radius:10px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;flex:none;font-size:.66rem;font-weight:700;color:var(--mut);text-transform:uppercase}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.meta{flex:1;min-width:0}.sub{font-size:.82rem;color:var(--mut)}.sub.ok{color:var(--ok)}.sub.bad{color:var(--bad)}
+.prog{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:7px;display:none}
+.file.busy .prog{display:block}.file.busy .x{visibility:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc);border-radius:3px;transition:width .15s}
+.acts{display:flex;gap:8px;margin-top:8px}.acts:empty{display:none}
+.spin{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp .9s linear infinite;margin:6px auto 12px}
+.spin.sm{width:22px;height:22px;margin:0;border-width:2.5px;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.big-ic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;margin:4px auto 10px;background:var(--bad-soft);color:var(--bad)}
+.steps{margin:16px 0 0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:flex;align-items:flex-start;gap:12px;padding:6px 0;color:var(--mut)}
+.steps li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc);font-weight:700;font-size:.85rem;display:grid;place-items:center}
+.field{display:flex;gap:8px}.field input{flex:1;min-width:0;font:inherit;padding:0 12px;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 14px;cursor:pointer}
+.sw{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.sw:checked{background:var(--acc)}.sw:checked::after{transform:translateX(18px)}
+.foot{display:flex;align-items:center;justify-content:center;gap:6px;font-size:.78rem;color:var(--mut);margin-top:20px;text-align:center}.foot .ic svg{width:14px;height:14px}
+.vh{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:0}
 </style>
 </head>
 <body>
+<header class="top"><div class="brand"><span class="logo" id="logo"></span>Handoff</div><span class="pill" id="pill" hidden></span></header>
 <main id="app"></main>
+<input type="file" id="pick" class="vh" multiple tabindex="-1" aria-hidden="true">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
@@ -39,15 +87,20 @@ const CONFIG = {
       // { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'pass' },
     ] },
   },
-  joinMinutes: 10,   // how long a join link is valid
-  maxGuests: 5,      // devices per link
-  chunk: 15000,      // plaintext bytes per message (stays under the 16 KB cross-browser limit)
-  memLimit: 1e9,     // max file size when it has to be held in memory (no save folder)
+  joinMinutes: 10,    // how long an invite link is valid
+  maxGuests: 5,       // devices per invite
+  resumeMinutes: 30,  // how long an approved device may reconnect without a new approval
+  chunk: 15000,       // plaintext bytes per message (stays under the 16 KB cross-browser limit)
+  memLimit: 1e9,      // max file size when it has to be held in memory (no save folder)
 };
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
-function h(t, a = {}, ...c) { const e = document.createElement(t); for (const k in a) k.startsWith('on') ? e[k] = a[k] : e.setAttribute(k, a[k]); e.append(...c); return e; }
+function h(t, a = {}, ...c) {
+  const e = document.createElement(t);
+  for (const k in a) if (a[k] != null && a[k] !== false) k.startsWith('on') ? e[k] = a[k] : e.setAttribute(k, a[k]);
+  e.append(...c.flat().filter(x => x != null && x !== false && x !== '')); return e;
+}
 const enc = new TextEncoder(), dec = new TextDecoder(), sleep = ms => new Promise(r => setTimeout(r, ms));
 const sz = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
 const rnd = n => crypto.getRandomValues(new Uint8Array(n));
@@ -57,6 +110,23 @@ const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')
 const cat = (...a) => { const o = new Uint8Array(a.reduce((s, x) => s + x.length, 0)); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
 const safeName = n => (String(n).split(/[\\/]/).pop().replace(/[\x00-\x1f<>:"|?*]/g, '_').trim().slice(0, 150)) || 'file';
 const devName = () => { const u = navigator.userAgent; return (/iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows PC' : /Mac/.test(u) ? 'Mac' : 'Device'); };
+const isPhone = n => /iPhone|iPad|Android/.test(n);
+const ext = n => (/\.([a-z0-9]{1,5})$/i.exec(n) || [])[1] || 'file';
+const hhmm = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const touch = matchMedia('(pointer: coarse)').matches;
+const INVITE = /#j=(h[0-9a-f]{32})\.([A-Za-z0-9_-]{22})$/, STORE = 'handoff.resume';
+function store(v) { try { v ? sessionStorage.setItem(STORE, JSON.stringify(v)) : sessionStorage.removeItem(STORE); } catch (e) {} }
+
+const SVG = {
+  logo: '<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
+  up: '<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  pc: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+};
+function ic(n) { const s = h('span', { class: 'ic' }); s.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SVG[n] + '</svg>'; return s; }
 
 /* ---------- crypto: HKDF from the link secret, HMAC proofs, AES-GCM with counter nonces ---------- */
 async function derive(secret, salt, info, kind) {
@@ -70,47 +140,87 @@ const sign = async (k, d) => new Uint8Array(await crypto.subtle.sign('HMAC', k, 
 const verify = (k, sig, d) => crypto.subtle.verify('HMAC', k, sig, d);
 const ZERO = new Uint8Array(32);
 
-class Chan {  // encrypted, ordered channel. Nonce = direction + message counter, so replays/reorders fail to decrypt.
-  constructor(conn, key, sd, rd, app) {
-    Object.assign(this, { c: conn, key, sd, rd, app, sc: 0, rc: 0, q: Promise.resolve(), rq: Promise.resolve(), w: new Map(), rx: new Map(), x: 0, wanted: 0 });
+class Chan {  // encrypted, ordered channel over one data connection. Nonce = direction + message counter, so replays/reorders fail to decrypt.
+  constructor(conn, key, sd, rd, L) {
+    Object.assign(this, { c: conn, key, sd, rd, L, sc: 0, rc: 0, q: Promise.resolve(), rq: Promise.resolve(), w: new Map(), rx: new Map(), x: 0, dead: false, drop: null });
   }
   iv(d, n) { const v = new Uint8Array(12); v[0] = d; new DataView(v.buffer).setUint32(8, n); return v; }
   send(type, pl) {
     const p = this.q.then(async () => {
+      if (this.dead) throw new Error('closed');
       const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: this.iv(this.sd, this.sc++) }, this.key, cat(Uint8Array.of(type), pl));
-      const dc = this.c.dataChannel; while (dc && dc.bufferedAmount > (1 << 20)) await sleep(15);  // backpressure
+      await this.drain();
+      if (this.dead) throw new Error('closed');
       this.c.send(ct);
     });
     this.q = p.catch(() => {}); return p;
   }
+  drain() {  // backpressure: wait while more than 1 MB is queued in the data channel
+    const dc = this.c.dataChannel;
+    if (!dc || dc.bufferedAmount <= 1 << 20) return;
+    return new Promise(r => {
+      const f = () => { clearInterval(t); dc.removeEventListener('bufferedamountlow', f); dc.removeEventListener('close', f); r(); };
+      const t = setInterval(() => { if (this.dead || dc.bufferedAmount <= 1 << 20) f(); }, 500);
+      dc.bufferedAmountLowThreshold = 1 << 18; dc.addEventListener('bufferedamountlow', f); dc.addEventListener('close', f);
+    });
+  }
   json(o) { return this.send(1, enc.encode(JSON.stringify(o))); }
   push(d) {
     this.rq = this.rq.then(async () => {
+      if (this.dead) return;
       const pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.iv(this.rd, this.rc++) }, this.key, d));
+      this.L.seen = Date.now();
       await onMsg(this, pt[0], pt.subarray(1));
-    }).catch(() => this.c.close());
+    }).catch(() => this.close());
+  }
+  close() { if (this.drop) this.drop(); try { this.c.close(); } catch (e) {} }
+  kill() {  // connection is gone: fail everything in flight
+    if (this.dead) return; this.dead = true;
+    this.w.forEach(w => w('connection lost')); this.w.clear();
+    this.rx.forEach(s => { s.sink.abort(); s.it.fail('Interrupted - connection lost'); }); this.rx.clear();
   }
 }
 
-/* ---------- state + ui ---------- */
-const S = { mode: '', guests: [], shared: new Map(), recv: [], remote: [], status: '', statusCls: 'mut', ch: null };
-let dirHandle = null, H = null, wake = null;
-const app = $('#app'), prog = h('div'), dyn = h('div');
+/* ---------- links: one per remote device. status: unnamed | pending | ok | away | gone (host), connecting | verifying | pending | ok | away | failed | gone (guest) ---------- */
+const S = { mode: '', me: devName(), peers: [], items: [], accept: true };
+let H = null, G = null, dirHandle = null, wake = null;
 
-function row(label) {
-  const r = h('div', { class: 'row' }), m = h('div', {}, label), b = h('progress', { max: 1, value: 0 }); r.append(m, b); prog.append(r);
-  return { set: f => b.value = f, end: (t, c) => { b.remove(); m.textContent = label + ' - ' + t; m.className = c; setTimeout(() => r.remove(), c == 'ok' ? 5000 : 20000); } };
+function attach(L, conn, key, sd, rd) {
+  const ch = new Chan(conn, key, sd, rd, L), old = L.ch;
+  L.conn = conn; L.ch = ch; L.seen = Date.now();
+  ch.drop = () => { if (ch.dead) return; ch.kill(); if (L.ch === ch) L.lost(L); };
+  conn.on('close', ch.drop); conn.on('error', () => {});
+  if (old) old.close();
+  return ch;
 }
-function files(items, acts) {
-  return items.length ? h('div', {}, ...items.map(f => h('div', { class: 'item' }, h('span', { class: 'n' }, f.name), h('span', { class: 'mut' }, sz(f.size)), ...(acts ? acts(f) : []))))
-    : h('p', { class: 'mut' }, 'Nothing here yet.');
+function setLink(L, st) {
+  L.status = st;
+  if (st == 'ok' || st == 'gone') { const w = L.wait || []; L.wait = []; w.forEach(r => r(st == 'ok')); }
+  render();
 }
-const recvList = () => files(S.recv, f => [h('a', { href: f.url, download: f.name }, 'Save')]);
-function keepAwake() { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wake = l).catch(() => {}); }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState == 'visible' && S.ch || H) keepAwake(); });
+const whenOk = L => L.status == 'ok' ? Promise.resolve(true) : L.status == 'away' ? new Promise(r => (L.wait = L.wait || []).push(r)) : Promise.resolve(false);
+const acceptWhy = L => L.status != 'ok' ? 'not connected' : S.accept ? null : 'receiving is turned off on that device';
 
-/* ---------- file transfer (shared by both sides) ---------- */
-async function makeSink(name) {
+function checkAlive(L) {  // after the page was in the background: make sure the link still works, otherwise drop it so it reconnects
+  if (L.status != 'ok' || !L.ch) return;
+  const ch = L.ch, pc = L.conn.peerConnection, dc = L.conn.dataChannel, st = pc && pc.iceConnectionState;
+  if (st == 'failed' || st == 'closed' || (dc && dc.readyState != 'open')) return ch.close();
+  const t0 = Date.now(); ch.json({ t: 'ping' }).catch(() => {});
+  setTimeout(() => { if (L.ch === ch && !(L.seen > t0)) ch.close(); }, 15000);
+}
+function keepAwake() { if (navigator.wakeLock && !document.hidden) navigator.wakeLock.request('screen').then(l => wake = l).catch(() => {}); }
+function wakeUp() {
+  if (document.hidden || !S.mode) return;
+  keepAwake();
+  if (S.mode == 'host') hostSig();
+  if (S.mode == 'guest' && G && !G.ended && G.L.status == 'away') { G.tries = 0; guestConnect(); }
+  S.peers.forEach(checkAlive);
+}
+document.addEventListener('visibilitychange', wakeUp);
+window.addEventListener('online', wakeUp);
+
+/* ---------- file transfer (both directions) ---------- */
+async function makeSink(name, mime) {
   if (dirHandle) {
     let nm = name, i = 0;
     for (;;) { try { await dirHandle.getFileHandle(nm); nm = name.replace(/(\.[^.]*)?$/, ` (${++i})$1`); } catch (e) { break; } }
@@ -118,45 +228,99 @@ async function makeSink(name) {
     return { write: b => w.write(b), close: async () => { await w.close(); return null; }, abort: () => w.abort().catch(() => {}) };
   }
   const parts = [];
-  return { write: b => { parts.push(b.slice()); }, close: async () => URL.createObjectURL(new Blob(parts)), abort: () => { parts.length = 0; } };
+  return { write: b => { parts.push(b.slice()); }, close: async () => new Blob(parts, { type: mime }), abort: () => { parts.length = 0; } };
 }
 
-async function sendFile(ch, file) {
-  const x = ++ch.x, r = row('Sending ' + file.name);
-  const go = Promise.race([new Promise(res => ch.w.set(x, res)), sleep(20000).then(() => 'no answer')]);
+function queueSend(L, file) {
+  const it = addItem({ dir: 'out', name: file.name, size: file.size, mime: file.type, who: L.name, file, L });
+  it.state(L.status == 'ok' ? 'Queued' : 'Waiting for connection...');
+  L.sq = (L.sq || Promise.resolve()).then(() => sendFile(L, file, it));
+}
+async function sendFile(L, file, it) {
+  if (!await whenOk(L)) return it.fail('Not connected');
+  const ch = L.ch, x = ++ch.x;
+  it.state('Waiting for ' + L.name + '...');
+  const go = Promise.race([new Promise(res => ch.w.set(x, res)), sleep(30000).then(() => 'no answer')]);
   try {
-    await ch.json({ t: 'offer', x, name: file.name, size: file.size });
-    const ans = await go; if (ans !== true) return r.end('refused (' + ans + ')', 'bad');
-    let off = 0, n = 0;
+    await ch.json({ t: 'offer', x, name: file.name, size: file.size, mime: file.type });
+    const ans = await go; ch.w.delete(x); if (ans !== true) return it.fail('Not accepted: ' + ans);
+    let off = 0, n = 0; const hd = new Uint8Array(4); new DataView(hd.buffer).setUint32(0, x);
     while (off < file.size) {
-      const b = new Uint8Array(await file.slice(off, off + CONFIG.chunk).arrayBuffer()), hd = new Uint8Array(4);
-      new DataView(hd.buffer).setUint32(0, x); await ch.send(2, cat(hd, b)); off += b.length; n++; r.set(off / file.size);
+      const blk = new Uint8Array(await file.slice(off, off + CONFIG.chunk * 64).arrayBuffer());
+      if (!blk.length) throw 0;
+      for (let i = 0; i < blk.length; i += CONFIG.chunk) {
+        if (ch.dead) throw 0;
+        await ch.send(2, cat(hd, blk.subarray(i, i + CONFIG.chunk))); n++;
+        it.set((off + Math.min(i + CONFIG.chunk, blk.length)) / file.size);
+      }
+      off += blk.length;
     }
-    await ch.json({ t: 'end', x, n, size: file.size }); r.end('sent', 'ok');
-  } catch (e) { r.end('failed', 'bad'); }
+    await ch.json({ t: 'end', x, n, size: file.size }); it.done();
+  } catch (e) { it.fail(ch.dead ? 'Interrupted - connection lost' : 'Failed'); }
 }
 
 async function onMsg(ch, type, pl) {
+  const L = ch.L;
   if (type == 2) {  // file chunk
     const s = ch.rx.get(new DataView(pl.buffer, pl.byteOffset).getUint32(0)); if (!s) throw 0;
     const b = pl.subarray(4); s.got += b.length; s.n++; if (s.got > s.size) throw 0;
-    await s.sink.write(b); s.r.set(s.size ? s.got / s.size : 1); return;
+    await s.sink.write(b); s.it.set(s.size ? s.got / s.size : 1); return;
   }
   const m = JSON.parse(dec.decode(pl));
   if (m.t == 'offer') {
-    const nm = safeName(m.name), why = ch.accept();
-    if (why || !(m.size >= 0) || m.size > (dirHandle ? 4e12 : CONFIG.memLimit)) return ch.json({ t: 'reject', x: m.x, why: why || 'too large for memory - choose a save folder' });
-    ch.rx.set(m.x, { size: m.size, got: 0, n: 0, name: nm, r: row('Receiving ' + nm), sink: await makeSink(nm) });
+    const nm = safeName(m.name), size = +m.size, why = acceptWhy(L);
+    if (why || !(size >= 0) || size > (dirHandle ? 4e12 : CONFIG.memLimit)) return ch.json({ t: 'reject', x: m.x, why: why || 'too large to keep in memory' });
+    const mime = typeof m.mime == 'string' && /^[\w.+-]+\/[\w.+-]+$/.test(m.mime) ? m.mime : '';
+    const it = addItem({ dir: 'in', name: nm, size, mime, who: L.name });
+    let sink; try { sink = await makeSink(nm, mime); } catch (e) { it.fail('Could not save'); return ch.json({ t: 'reject', x: m.x, why: 'could not save' }); }
+    it.state('Receiving'); ch.rx.set(m.x, { size, got: 0, n: 0, it, sink });
     return ch.json({ t: 'go', x: m.x });
   }
-  if (m.t == 'go' || m.t == 'reject') { const w = ch.w.get(m.x); ch.w.delete(m.x); if (w) w(m.t == 'go' ? true : m.why || 'refused'); return; }
+  if (m.t == 'go' || m.t == 'reject') { const w = ch.w.get(m.x); ch.w.delete(m.x); if (w) w(m.t == 'go' ? true : String(m.why || 'refused')); return; }
   if (m.t == 'end') {
     const s = ch.rx.get(m.x); ch.rx.delete(m.x); if (!s) return;
-    if (s.got !== m.size || s.n !== m.n || s.got !== s.size) { await s.sink.abort(); return s.r.end('incomplete', 'bad'); }
-    const url = await s.sink.close(); s.r.end(url ? 'received' : 'saved to folder', 'ok');
-    if (url) { S.recv.push({ name: s.name, size: s.size, url }); render(); } return;
+    if (s.got !== m.size || s.n !== m.n || s.got !== s.size) { await s.sink.abort(); return s.it.fail('Incomplete'); }
+    return s.it.done(await s.sink.close());
   }
-  return ch.app(m);
+  if (m.t == 'ping') return ch.json({ t: 'pong' });
+  if (m.t == 'pong') return;
+  return S.mode == 'host' ? hostApp(L, m) : guestApp(L, m);
+}
+
+/* ---------- file list items (persistent elements, so progress updates don't re-render) ---------- */
+function addItem({ dir, name, size, mime, who, file, L }) {
+  const it = { dir, name, size, mime: mime || '', file, L, blob: null, urls: [] };
+  const thumb = h('div', { class: 'thumb' }), bar = h('i'), sub = h('div', { class: 'sub' }), acts = h('div', { class: 'acts' });
+  const x = h('button', { type: 'button', class: 'btn icon x', title: 'Remove from list', 'aria-label': 'Remove from list', onclick: () => it.remove() }, ic('x'));
+  const el = h('div', { class: 'file busy' }, thumb, h('div', { class: 'meta' }, h('div', { class: 'name' }, name), sub, h('div', { class: 'prog' }, bar), acts), x);
+  const base = sz(size) + ' · ' + (dir == 'in' ? 'from ' : 'to ') + who;
+  const setSub = (t, c) => { sub.textContent = base + (t ? ' · ' + t : ''); sub.className = 'sub ' + (c || ''); };
+  const url = b => { const u = URL.createObjectURL(b); it.urls.push(u); return u; };
+  const setThumb = src => thumb.replaceChildren(src ? h('img', { src, alt: '' }) : ext(name));
+  setThumb(file && it.mime.startsWith('image/') && size < 5e7 ? url(file) : null);
+  Object.assign(it, {
+    el,
+    state: t => { el.classList.add('busy'); setSub(t); },
+    set: f => { bar.style.width = (f * 100).toFixed(1) + '%'; setSub(Math.floor(f * 100) + '%'); },
+    done: blob => {
+      el.classList.remove('busy');
+      if (dir == 'out') return setSub('Sent', 'ok');
+      if (!blob) return setSub('Saved to folder', 'ok');
+      it.blob = blob; const u = url(blob); if (it.mime.startsWith('image/')) setThumb(u);
+      setSub('Received', 'ok');
+      const asFile = () => new File([blob], name, { type: it.mime });
+      acts.replaceChildren(h('a', { class: 'btn sm p', href: u, download: name }, 'Save'),
+        touch && navigator.canShare && navigator.canShare({ files: [asFile()] }) ? h('button', { type: 'button', class: 'btn sm', onclick: () => navigator.share({ files: [asFile()] }).catch(() => {}) }, 'Share') : null);
+      render();
+    },
+    fail: t => {
+      el.classList.remove('busy'); setSub(t, 'bad');
+      if (dir == 'out' && file) acts.replaceChildren(h('button', { type: 'button', class: 'btn sm', onclick: () => { it.remove(); queueSend(L, file); } }, 'Retry'));
+    },
+    free: () => it.urls.forEach(u => URL.revokeObjectURL(u)),
+    remove: () => { it.free(); S.items = S.items.filter(i => i !== it); render(); },
+  });
+  S.items.unshift(it); render(); return it;
 }
 
 /* ---------- HOST ---------- */
@@ -165,139 +329,314 @@ function newSecret() {
   clearTimeout(H.t); H.t = setTimeout(render, CONFIG.joinMinutes * 60000 + 100);
 }
 const joinUrl = () => location.origin + location.pathname + '#j=' + H.id + '.' + b64u(H.secret);
-const sendList = g => g.ch.json({ t: 'list', files: [...S.shared].map(([id, { file }]) => ({ id, name: file.name, size: file.size })) });
-const broadcast = () => S.guests.filter(g => g.status == 'ok').forEach(sendList);
 
 function startHost() {
-  S.mode = 'host'; H = { id: 'h' + hex(rnd(16)), accept: true, ready: false }; newSecret(); keepAwake();
+  S.mode = 'host'; S.peers = []; S.items = [];
+  H = { id: 'h' + hex(rnd(16)), ready: false, dead: false, inviteOpen: false, hs: 0 };
+  newSecret(); keepAwake();
   const peer = H.peer = new Peer(H.id, CONFIG.peer);
   peer.on('open', () => { H.ready = true; render(); });
-  peer.on('error', e => { S.status = 'Signaling problem: ' + e.type; S.statusCls = 'bad'; render(); });
+  peer.on('disconnected', () => { H.ready = false; render(); });   // existing transfers keep working; hostSig reconnects
+  peer.on('error', () => setTimeout(() => { if (H && H.peer === peer && peer.destroyed) { H.dead = true; render(); } }));
   peer.on('connection', hostConn);
+  H.tick = setInterval(hostSig, 5000);
   window.onbeforeunload = () => true;
   render();
 }
+function hostSig() { const p = H && H.peer; if (p && !p.destroyed && p.disconnected && !document.hidden) try { p.reconnect(); } catch (e) {} }
+function stopHost() { clearInterval(H.tick); clearTimeout(H.t); const p = H.peer; setTimeout(() => { try { p.destroy(); } catch (e) {} }, 400); }
 
 function hostConn(conn) {
-  if (S.guests.filter(x => x.status == 'auth').length > 3) return conn.close();
-  const g = { conn, name: 'Connecting...', status: 'auth', ch: null }; S.guests.push(g);
-  let stage = 0, Ng, Nh, auth, q = Promise.resolve(); const secret = H.secret;
-  const kill = () => { try { conn.close(); } catch (e) {} };
-  const timer = setTimeout(() => { if (g.status == 'auth') kill(); }, 15000);
-  conn.on('close', () => { clearTimeout(timer); S.guests = S.guests.filter(x => x !== g); render(); });
+  if (!H || H.hs >= 4) return conn.close();
+  H.hs++;
+  let stage = 0, Ng, Nh, auth, secret, resume = null, ch = null, q = Promise.resolve(), pending = true;
+  const host = H, done = () => { if (pending) { pending = false; host.hs--; clearTimeout(timer); } };
+  const kill = () => { done(); try { conn.close(); } catch (e) {} };
+  const timer = setTimeout(kill, 15000);
+  conn.on('close', done); conn.on('error', () => {});
   conn.on('data', d => {
-    if (g.ch) return g.ch.push(d);
+    if (ch) return ch.push(d);
     q = q.then(async () => {
-      if (g.ch) return g.ch.push(d);   // encrypted message that arrived while the handshake was finishing
+      if (ch) return ch.push(d);   // encrypted message that arrived while the handshake was finishing
       if (typeof d !== 'string') throw 0;
       const m = JSON.parse(d);
       if (stage == 0 && m.h == 1) {
-        if (Date.now() > H.exp || H.left <= 0) throw 0;
-        Ng = unb64u(m.n); if (Ng.length != 16) throw 0; Nh = rnd(16); stage = 1;
-        auth = await derive(secret, ZERO, 'auth', 'mac');
+        Ng = unb64u(m.n); if (Ng.length != 16) throw 0;
+        if (m.r) {   // an approved device coming back: authenticate with its own resume key, no approval needed
+          resume = S.peers.find(p => p.rid === m.r && p.rk); if (!resume) throw 0; secret = resume.rk;
+        } else {
+          if (Date.now() > H.exp || H.left <= 0) throw 0; secret = H.secret;
+        }
+        Nh = rnd(16); stage = 1; auth = await derive(secret, ZERO, 'auth', 'mac');
         conn.send(JSON.stringify({ h: 2, n: b64u(Nh), p: b64u(await sign(auth, cat(enc.encode('H'), Ng, Nh))) }));
       } else if (stage == 1 && m.h == 3) {
-        if (!await verify(auth, unb64u(m.p), cat(enc.encode('G'), Nh, Ng)) || H.left <= 0) throw 0;
-        H.left--; stage = 2; clearTimeout(timer);
-        g.ch = new Chan(conn, await derive(secret, cat(Ng, Nh), 'enc', 'aes'), 1, 2, m => hostApp(g, m));
-        g.ch.accept = () => g.status == 'ok' ? (H.accept ? null : 'PC is not accepting uploads') : 'not approved';
-        g.status = 'unnamed';
+        if (!await verify(auth, unb64u(m.p), cat(enc.encode('G'), Nh, Ng))) throw 0;
+        if (resume && (!resume.rk || resume.status == 'gone')) throw 0;
+        if (!resume) { if (H.left <= 0) throw 0; H.left--; }
+        stage = 2; done();
+        const key = await derive(secret, cat(Ng, Nh), 'enc', 'aes');
+        if (resume) {
+          clearTimeout(resume.away);
+          ch = attach(resume, conn, key, 1, 2); ch.json({ t: 'ok', name: S.me }); setLink(resume, 'ok');
+        } else {
+          const L = { name: 'New device', status: 'unnamed', lost: hostLost }; S.peers.push(L);
+          ch = attach(L, conn, key, 1, 2);
+          setTimeout(() => { if (L.status == 'unnamed') forget(L); }, 15000);
+        }
       } else throw 0;
     }).catch(kill);
   });
 }
-function hostApp(g, m) {
-  if (m.t == 'hi' && g.status == 'unnamed') { g.name = String(m.name).slice(0, 40); g.status = 'pending'; render(); }
-  else if (m.t == 'get' && g.status == 'ok') { const f = S.shared.get(m.id); if (f) sendFile(g.ch, f.file); }
+function hostApp(L, m) {
+  if (m.t == 'hi' && L.status == 'unnamed') { L.name = String(m.name || 'Device').slice(0, 40); setLink(L, 'pending'); if (navigator.vibrate) navigator.vibrate(150); }
+  else if (m.t == 'bye') forget(L);
 }
-const approve = g => { g.status = 'ok'; g.ch.json({ t: 'ok' }); sendList(g); render(); };
-const deny = g => { g.ch.json({ t: 'no' }).then(() => sleep(300)).finally(() => g.conn.close()); };
+function hostLost(L) {
+  if (L.status == 'gone') return;
+  if (L.status == 'ok' || L.status == 'away') { setLink(L, 'away'); clearTimeout(L.away); L.away = setTimeout(() => forget(L), CONFIG.resumeMinutes * 60000); }
+  else forget(L);
+}
+function forget(L) {
+  if (L.status == 'gone') return;
+  clearTimeout(L.away); L.rk = null; S.peers = S.peers.filter(x => x !== L);
+  L.status = 'gone'; if (L.ch) L.ch.close(); setLink(L, 'gone');
+}
+function approve(L) {
+  if (L.status != 'pending') return;
+  L.rid = hex(rnd(16)); L.rk = rnd(32);
+  L.ch.json({ t: 'ok', name: S.me, rid: L.rid, rk: b64u(L.rk) }); H.inviteOpen = false; setLink(L, 'ok');
+}
+function dismiss(L, t) { L.ch.json({ t }).catch(() => {}); S.peers = S.peers.filter(x => x !== L); render(); setTimeout(() => forget(L), 300); }
+const deny = L => dismiss(L, 'no');
+const removeDev = L => { if (confirm('Disconnect ' + L.name + '?')) dismiss(L, 'bye'); };
+function endSession() {
+  if (!confirm('End the session? Connected devices are disconnected and received files you have not saved are lost.')) return;
+  S.peers.forEach(p => { clearTimeout(p.away); if (p.ch) p.ch.json({ t: 'bye' }).catch(() => {}); });
+  stopHost(); reset();
+}
 
 /* ---------- GUEST ---------- */
-function startGuest(hostId, secret) {
-  S.mode = 'guest'; setStatus('Connecting...', 'mut'); keepAwake();
-  const peer = new Peer(undefined, CONFIG.peer);
-  const fail = t => { setStatus(t, 'bad'); try { peer.destroy(); } catch (e) {} };
-  peer.on('error', e => fail(e.type == 'peer-unavailable' ? 'The host is not online, or the session ended.' : 'Connection problem: ' + e.type));
-  peer.on('open', () => {
-    const conn = peer.connect(hostId, { serialization: 'raw', reliable: true });
-    const Ng = rnd(16); let Nh, ch = null, q = Promise.resolve();
-    const timer = setTimeout(() => { if (!ch || S.status.startsWith('Verif')) fail('Timed out. Is the host page open?'); }, 20000);
-    conn.on('open', () => { setStatus('Verifying...', 'mut'); conn.send(JSON.stringify({ h: 1, n: b64u(Ng) })); });
-    conn.on('close', () => { clearTimeout(timer); S.ch = null; if (S.statusCls != 'bad') setStatus('Disconnected.', 'bad'); });
+function startGuest(hostId, secret, resume) {
+  S.mode = 'guest'; S.items = [];
+  const L = { name: resume ? String(resume.name || 'the other device').slice(0, 40) : 'the other device', status: resume ? 'away' : 'connecting', note: '', lost: guestLost };
+  S.peers = [L];
+  G = { hostId, secret, L, rid: resume ? resume.rid : null, rk: resume ? unb64u(resume.rk) : null, peer: null, tries: 0, ended: false, busy: false };
+  window.onbeforeunload = () => L.status == 'ok' || L.status == 'away' ? true : undefined;
+  keepAwake(); guestConnect();
+}
+function getGuestPeer(g) {
+  const old = g.peer;
+  if (old && old.open && !old.disconnected && !old.destroyed) return Promise.resolve(old);
+  if (old) try { old.destroy(); } catch (e) {}   // only reached when no live connection uses it
+  return new Promise((res, rej) => {
+    const p = g.peer = new Peer(undefined, CONFIG.peer);
+    const t = setTimeout(() => { rej(new Error('signaling timeout')); try { p.destroy(); } catch (e) {} }, 15000);
+    p.once('open', () => { clearTimeout(t); res(p); });
+    p.on('error', e => { if (!p.open) { clearTimeout(t); rej(new Error(e.type)); } });   // later signaling errors are harmless once connected
+  });
+}
+async function guestHandshake(g, resuming) {
+  const peer = await getGuestPeer(g);
+  return new Promise((res, rej) => {
+    const L = g.L, Ng = rnd(16), secret = resuming ? g.rk : g.secret;
+    const conn = peer.connect(g.hostId, { serialization: 'raw', reliable: true });
+    let ch = null, opened = false, settled = false, q = Promise.resolve();
+    const end = err => {
+      if (settled) return; settled = true; clearTimeout(t); peer.off('error', perr);
+      if (err) { try { conn.close(); } catch (e) {} rej(new Error(err)); } else res();
+    };
+    const perr = e => end(e.type == 'peer-unavailable' ? 'offline' : e.type);
+    const t = setTimeout(() => end(opened ? 'refused' : 'timeout'), 20000);
+    peer.on('error', perr);
+    conn.on('open', () => { opened = true; if (!resuming) setLink(L, 'verifying'); conn.send(JSON.stringify({ h: 1, n: b64u(Ng), r: resuming ? g.rid : undefined })); });
+    conn.on('close', () => end(opened ? 'refused' : 'closed'));
+    conn.on('error', () => {});
     conn.on('data', d => {
       if (ch) return ch.push(d);
       q = q.then(async () => {
         if (ch) return ch.push(d);
-        const m = JSON.parse(d), auth = await derive(secret, ZERO, 'auth', 'mac'); Nh = unb64u(m.n);
+        if (typeof d !== 'string') throw 0;
+        const m = JSON.parse(d), auth = await derive(secret, ZERO, 'auth', 'mac'), Nh = unb64u(m.n);
         if (m.h != 2 || Nh.length != 16 || !await verify(auth, unb64u(m.p), cat(enc.encode('H'), Ng, Nh))) throw 0;
         conn.send(JSON.stringify({ h: 3, p: b64u(await sign(auth, cat(enc.encode('G'), Nh, Ng))) }));
-        ch = S.ch = new Chan(conn, await derive(secret, cat(Ng, Nh), 'enc', 'aes'), 2, 1, m => guestApp(ch, m));
-        ch.accept = () => ch.wanted > 0 ? (ch.wanted--, null) : 'unexpected file';
-        ch.json({ t: 'hi', name: devName() }); setStatus('Waiting for the PC to approve this device...', 'warn');
-      }).catch(() => fail('Could not verify the host. The link may be wrong or expired.'));
+        ch = attach(L, conn, await derive(secret, cat(Ng, Nh), 'enc', 'aes'), 2, 1);
+        ch.json({ t: 'hi', name: S.me });
+        if (!resuming) setLink(L, 'pending');
+        end();
+      }).catch(() => end('auth'));
     });
   });
 }
-function guestApp(ch, m) {
-  if (m.t == 'ok') setStatus('Connected. Transfers are end-to-end encrypted.', 'ok');
-  else if (m.t == 'no') { setStatus('The PC blocked this device.', 'bad'); }
-  else if (m.t == 'list') { S.remote = m.files.slice(0, 500).map(f => ({ id: String(f.id), name: safeName(f.name), size: +f.size || 0 })); render(); }
+async function guestConnect() {
+  const g = G; if (!g || g.ended || g.busy) return;
+  g.busy = true; clearTimeout(g.rt);
+  const L = g.L, resuming = !!g.rk;
+  if (!resuming) { L.note = ''; setLink(L, 'connecting'); }
+  try { await guestHandshake(g, resuming); g.tries = 0; }
+  catch (e) {
+    if (g.ended) return;
+    const why = e && e.message || 'error';
+    if (resuming && (why == 'refused' || why == 'auth')) return guestEnd('The other device ended the session.');
+    if (!resuming) {
+      L.note = why == 'offline' ? 'The other device can\'t be reached. Is its Handoff page still open?'
+        : why == 'refused' || why == 'auth' ? 'This invite is wrong, expired or already used. Ask for a new one.'
+        : 'Could not connect (' + why + '). Check your network and try again.';
+      return setLink(L, 'failed');
+    }
+    if (!document.hidden) g.rt = setTimeout(guestConnect, Math.min(1000 * 2 ** g.tries++, 15000));   // keep trying; wakeUp() restarts when visible
+  } finally { g.busy = false; }
 }
-function setStatus(t, c) { S.status = t; S.statusCls = c; render(); }
+function guestLost(L) {
+  if (!G || G.ended) return;
+  if (L.status == 'ok' || L.status == 'away') { setLink(L, 'away'); G.tries = 0; if (!document.hidden) guestConnect(); }
+  else if (L.status == 'pending') { L.note = 'The connection dropped before the other device approved it.'; setLink(L, 'failed'); }
+}
+function guestApp(L, m) {
+  if (m.t == 'ok') {
+    if (m.rid && m.rk) { G.rid = String(m.rid); G.rk = unb64u(m.rk); }
+    L.name = String(m.name || 'the other device').slice(0, 40);
+    store({ hostId: G.hostId, rid: G.rid, rk: b64u(G.rk), name: L.name });   // survives a reload of this tab
+    setLink(L, 'ok');
+  }
+  else if (m.t == 'no') guestEnd('The other device declined the connection.');
+  else if (m.t == 'bye') guestEnd('The other device ended the session.');
+}
+function guestEnd(note) {
+  const g = G; if (!g || g.ended) return;
+  g.ended = true; clearTimeout(g.rt); store(null); window.onbeforeunload = null;
+  const L = g.L; L.note = note; setLink(L, 'gone');
+  setTimeout(() => { if (L.ch) L.ch.close(); try { g.peer && g.peer.destroy(); } catch (e) {} }, 300);
+}
+function leave() {
+  if (!confirm('Leave this session? Received files you have not saved are lost.')) return;
+  const L = G.L; if (L.ch && L.status == 'ok') L.ch.json({ t: 'bye' }).catch(() => {});
+  guestEnd(''); reset();
+}
+function reset() {
+  S.items.forEach(i => i.free()); S.items = []; S.peers = []; S.mode = '';
+  if (G) { G.ended = true; clearTimeout(G.rt); store(null); const p = G.peer; setTimeout(() => { try { p && p.destroy(); } catch (e) {} }, 400); }
+  H = null; G = null; window.onbeforeunload = null; render();
+}
 
 /* ---------- render ---------- */
-function picker(label, onFiles) {
-  const inp = h('input', { type: 'file', multiple: '', onchange: () => { const f = [...inp.files]; inp.value = ''; onFiles(f); } });
-  const l = h('label', { class: 'drop' }, label, inp);
-  l.ondragover = e => { e.preventDefault(); l.classList.add('over'); }; l.ondragleave = () => l.classList.remove('over');
-  l.ondrop = e => { e.preventDefault(); l.classList.remove('over'); onFiles([...e.dataTransfer.files]); };
-  return l;
+const app = $('#app'), pill = $('#pill'), fileIn = $('#pick');
+let onPick = null;
+fileIn.onchange = () => { const f = [...fileIn.files]; fileIn.value = ''; if (onPick && f.length) onPick(f); };
+
+const btn = (label, onclick, cls = '', title) => h('button', { type: 'button', class: 'btn ' + cls, onclick, title, 'aria-label': title }, label);
+const card = (cls, ...c) => h('section', { class: 'card ' + cls }, ...c);
+function setPill(t, c) { pill.hidden = !t; pill.textContent = t || ''; pill.className = 'pill ' + (c || ''); }
+const STATUS = { ok: ['Connected', 'ok'], away: ['Reconnecting...', 'warn'], pending: ['Wants to connect', 'warn'] };
+function devRow(L, ...extra) {
+  const [t, c] = STATUS[L.status] || ['', ''];
+  return h('div', { class: 'dev' }, h('div', { class: 'av' }, ic(isPhone(L.name) ? 'phone' : 'pc')),
+    h('div', { class: 'grow' }, h('div', { class: 'name' }, L.name), h('div', { class: 'small ' + c }, t)), ...extra);
 }
+function dropzone(label, on, onFiles) {
+  const inner = [ic('up'), h('span', { class: 'big' }, label), h('span', { class: 'small' }, !on ? 'Connect a device first' : touch ? 'Photos, videos, documents - anything' : 'or drop files here')];
+  if (!on) return h('div', { class: 'drop off' }, ...inner);
+  const z = h('label', { class: 'drop', for: 'pick', tabindex: '0', onclick: () => { onPick = onFiles; } }, ...inner);   // the input is persistent, so re-renders while the picker is open don't lose the selection
+  z.onkeydown = e => { if (e.key == 'Enter' || e.key == ' ') { e.preventDefault(); onPick = onFiles; fileIn.click(); } };
+  z.ondragover = e => { e.preventDefault(); z.classList.add('over'); };
+  z.ondragleave = () => z.classList.remove('over');
+  z.ondrop = e => { e.preventDefault(); z.classList.remove('over'); const f = [...e.dataTransfer.files]; if (f.length) onFiles(f); };
+  return z;
+}
+function filesCard() {
+  return card('', h('h2', {}, 'Files'),
+    S.items.length ? h('div', {}, S.items.map(i => i.el)) : h('p', { class: 'mut small' }, 'Files you send and receive show up here.'),
+    S.items.some(i => i.blob) ? h('p', { class: 'small mut' }, 'Received files stay in this tab until you save them.') : null);
+}
+function settingsCard(endLabel, onEnd) {
+  const cb = h('input', { type: 'checkbox', class: 'sw', onchange: () => { S.accept = cb.checked; } }); cb.checked = S.accept;
+  return card('', h('h2', {}, 'Settings'),
+    h('label', { class: 'toggle' }, h('div', {}, h('div', {}, 'Receive files'), h('div', { class: 'small mut' }, 'Accept files sent from connected devices')), cb),
+    window.showDirectoryPicker ? h('div', { class: 'toggle' }, h('div', { class: 'grow' }, h('div', {}, 'Save location'), h('div', { class: 'small mut name' }, dirHandle ? 'Folder: ' + dirHandle.name : 'Kept in this tab until you save them')),
+      btn(dirHandle ? 'Change' : 'Choose folder', async () => { try { dirHandle = await showDirectoryPicker({ mode: 'readwrite' }); render(); } catch (e) {} }, 'sm')) : null,
+    btn(endLabel, onEnd, 'block d'));
+}
+
+function homeView() {
+  setPill('');
+  const inp = h('input', { type: 'url', placeholder: 'Paste an invite link', autocomplete: 'off', 'aria-label': 'Invite link' }), err = h('p', { class: 'small bad' });
+  const join = () => { const m = INVITE.exec(inp.value.trim()); if (!m) return err.textContent = 'That doesn\'t look like a Handoff invite link.'; startGuest(m[1], unb64u(m[2])); };
+  inp.onkeydown = e => { if (e.key == 'Enter') join(); };
+  return [
+    card('hero', h('h1', {}, 'Send files between your devices'),
+      h('p', { class: 'mut' }, 'Phone to PC, PC to phone, or phone to phone. Files go directly between the devices, end-to-end encrypted. Nothing is uploaded to a server.'),
+      h('ol', { class: 'steps' },
+        h('li', {}, 'Start a session on one device.'),
+        h('li', {}, 'Scan its QR code with the other device\'s camera, or share the link.'),
+        h('li', {}, 'Approve the new device, then send files both ways.')),
+      h('div', { style: 'margin-top:16px' }, btn('Start a session', startHost, 'p block'))),
+    card('', h('h2', {}, 'Have an invite link?'), h('div', { class: 'field' }, inp, btn('Join', join)), err),
+  ];
+}
+
+function inviteCard(canHide) {
+  const live = H.ready && Date.now() < H.exp && H.left > 0;
+  const head = h('div', { class: 'head' }, h('h2', {}, 'Invite a device'), canHide ? btn('Hide', () => { H.inviteOpen = false; render(); }, 'sm ghost') : null);
+  if (!H.ready) return card('center', head, h('div', { class: 'spin' }), h('p', { class: 'mut small' }, 'Connecting to the signaling server...'));
+  if (!live) return card('center', head, h('p', {}, H.left > 0 ? 'This invite has expired.' : 'This invite has been used up.'), btn('Create a new invite', () => { newSecret(); render(); }, 'p'));
+  const url = joinUrl();
+  if (H.qrFor != url && window.qrcode) { const q = qrcode(0, 'M'); q.addData(url); q.make(); H.qr = q.createDataURL(8, 0); H.qrFor = url; }
+  const copy = navigator.clipboard ? btn('Copy link', () => navigator.clipboard.writeText(url).then(() => { copy.textContent = 'Copied'; setTimeout(() => copy.textContent = 'Copy link', 1500); }), 'sm') : null;
+  return card('', head, h('div', { class: 'qrbox' },
+    H.qrFor == url ? h('img', { src: H.qr, alt: 'QR code for the invite link' }) : null,
+    h('p', {}, 'Scan with the other device\'s camera'),
+    h('div', { class: 'row', style: 'justify-content:center' },
+      navigator.share ? btn('Share link', () => navigator.share({ title: 'Handoff invite', url }).catch(() => {}), 'sm') : null,
+      copy, btn('New code', () => { newSecret(); render(); }, 'sm')),
+    h('p', { class: 'small mut' }, 'Valid until ' + hhmm(H.exp) + ' · ' + H.left + (H.left == 1 ? ' device' : ' devices') + ' left')));
+}
+
+function hostView() {
+  const live = S.peers.filter(p => p.status == 'ok' || p.status == 'away'), pend = S.peers.filter(p => p.status == 'pending');
+  const nOk = live.filter(p => p.status == 'ok').length, showInv = H.inviteOpen || !live.length;
+  setPill(nOk ? nOk + ' connected' : H.ready ? 'Ready' : 'Connecting', nOk ? 'ok' : H.ready ? '' : 'warn');
+  return [
+    ...pend.map(p => h('div', { class: 'alert' }, devRow(p), h('div', { class: 'row' }, btn('Decline', () => deny(p), 'sm'), btn('Approve', () => approve(p), 'sm p')))),
+    H.dead ? card('center', h('p', { class: 'bad' }, 'Could not reach the signaling server.'), btn('Try again', () => { stopHost(); startHost(); }, 'p')) : null,
+    showInv && !H.dead ? inviteCard(live.length > 0) : null,
+    live.length ? card('', h('h2', {}, 'Devices'), live.map(p => devRow(p, btn(ic('x'), () => removeDev(p), 'icon', 'Disconnect ' + p.name))),
+      showInv ? null : btn([ic('plus'), 'Invite another device'], () => { H.inviteOpen = true; render(); }, 'sm ghost')) : null,
+    card('', h('h2', {}, 'Send'), dropzone(live.length == 1 ? 'Send to ' + live[0].name : live.length ? 'Send to all ' + live.length + ' devices' : 'Send files', live.length > 0,
+      fs => { const to = S.peers.filter(p => p.status == 'ok' || p.status == 'away'); fs.forEach(f => to.forEach(p => queueSend(p, f))); })),
+    filesCard(),
+    settingsCard('End session', endSession),
+  ];
+}
+
+function guestView() {
+  const L = G.L, st = L.status;
+  setPill(...({ connecting: ['Connecting', 'warn'], verifying: ['Connecting', 'warn'], pending: ['Waiting', 'warn'], ok: ['Connected', 'ok'], away: ['Reconnecting', 'warn'], failed: ['Not connected', 'bad'], gone: ['Ended', 'bad'] }[st] || ['']));
+  if (st == 'connecting' || st == 'verifying') return [card('center', h('div', { class: 'spin' }), h('h3', {}, st == 'connecting' ? 'Connecting...' : 'Securing the connection...'), h('p', { class: 'mut small' }, 'Keep the page open on both devices.'))];
+  if (st == 'pending') return [card('center', h('div', { class: 'spin' }), h('h3', {}, 'Waiting for approval'), h('p', { class: 'mut' }, 'Tap Approve on the other device to let this ' + S.me + ' in.'))];
+  if (st == 'failed') return [card('center', h('div', { class: 'big-ic' }, ic('x')), h('h3', {}, 'Couldn\'t connect'), h('p', { class: 'mut' }, L.note),
+    h('div', { class: 'row' }, G.secret ? btn('Try again', guestConnect, 'p') : null, btn('Back', reset)))];
+  if (st == 'gone') return [card('center', h('h3', {}, 'Session ended'), L.note ? h('p', { class: 'mut' }, L.note) : null, btn('Done', reset, 'p')), S.items.length ? filesCard() : null];
+  return [
+    st == 'away' ? h('div', { class: 'alert' }, h('div', { class: 'spin sm' }), h('div', { class: 'grow' }, h('div', { class: 'name' }, 'Reconnecting...'), h('div', { class: 'small mut' }, 'Files you pick now are sent as soon as the connection is back.'))) : null,
+    card('', devRow(L)),
+    card('', h('h2', {}, 'Send'), dropzone('Send to ' + L.name, true, fs => fs.forEach(f => queueSend(L, f)))),
+    filesCard(),
+    settingsCard('Leave session', leave),
+  ];
+}
+
 function render() {
-  if (S.mode == 'host') {
-    const live = H.ready && Date.now() < H.exp && H.left > 0;
-    const url = live ? joinUrl() : '', qr = live && window.qrcode ? (() => { const q = qrcode(0, 'M'); q.addData(url); q.make(); return q.createDataURL(6, 2); })() : null;
-    dyn.replaceChildren(
-      h('div', { class: 'qr' }, ...(qr ? [h('img', { src: qr, alt: 'QR code to join' })] : []),
-        h('div', {}, h('p', {}, !H.ready ? 'Connecting to signaling server...' : live ? 'Scan with your phone, or open:' : 'The join link expired or is used up.'),
-          live ? h('p', { class: 'link' }, url) : '',
-          live ? h('p', { class: 'mut' }, 'Valid until ' + new Date(H.exp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' for ' + H.left + ' more device(s). Keep this tab open.') : '',
-          S.status ? h('p', { class: S.statusCls }, S.status) : '',
-          h('div', { class: 'bar' }, h('button', { class: 'p', onclick: () => { newSecret(); render(); } }, 'New link'),
-            ...(live ? [h('button', { onclick: () => navigator.clipboard.writeText(url) }, 'Copy link')] : []),
-            h('button', { onclick: () => { H.accept = !H.accept; render(); } }, H.accept ? 'Stop accepting uploads' : 'Accept uploads'),
-            ...(window.showDirectoryPicker ? [h('button', { onclick: async () => { try { dirHandle = await showDirectoryPicker({ mode: 'readwrite' }); render(); } catch (e) {} } }, dirHandle ? 'Save folder: ' + dirHandle.name : 'Choose save folder')] : []),
-            h('button', { class: 'd', onclick: () => { if (confirm('End the session? Shared files become unreachable.')) { window.onbeforeunload = null; H.peer.destroy(); S.mode = ''; S.guests = []; S.shared.clear(); render(); } } }, 'End session')))),
-      h('h2', {}, 'Devices'),
-      S.guests.filter(g => g.status != 'auth' && g.status != 'unnamed').length ? h('div', {}, ...S.guests.filter(g => g.ch && g.status != 'unnamed').map(g => h('div', { class: 'item' },
-        h('span', { class: 'n' }, g.name), h('span', { class: g.status == 'ok' ? 'ok' : 'warn' }, g.status == 'ok' ? 'connected' : 'wants to join'),
-        ...(g.status == 'pending' ? [h('button', { class: 'p', onclick: () => approve(g) }, 'Approve'), h('button', { class: 'd', onclick: () => deny(g) }, 'Block')]
-          : [h('button', { class: 'd', onclick: () => g.conn.close() }, 'Remove')])))) : h('p', { class: 'mut' }, 'No devices yet.'),
-      h('h2', {}, 'Shared with guests'),
-      picker('Add files guests can download (or drop them here)', fs => { fs.forEach(f => S.shared.set(hex(rnd(8)), { file: f })); render(); broadcast(); }),
-      files([...S.shared].map(([id, { file }]) => ({ id, name: file.name, size: file.size })), f => [h('button', { class: 'd', onclick: () => { S.shared.delete(f.id); render(); broadcast(); } }, 'Stop sharing')]),
-      h('h2', {}, 'Received from guests'),
-      h('p', { class: 'mut' }, dirHandle ? 'Saving straight into the folder you chose.' : 'Kept in this tab\'s memory until you save them. Choose a save folder for big files.'), recvList());
-  } else if (S.mode == 'guest') {
-    const ok = S.ch && S.statusCls == 'ok';
-    dyn.replaceChildren(h('p', { class: S.statusCls }, S.status),
-      ...(ok ? [picker('Send files to the PC', fs => { keepAwake(); (async () => { for (const f of fs) await sendFile(S.ch, f); })(); }),
-        h('h2', {}, 'From the PC'),
-        files(S.remote, f => [h('button', { class: 'p', onclick: () => { S.ch.wanted++; S.ch.json({ t: 'get', id: f.id }); } }, 'Get')]),
-        h('h2', {}, 'Received'), recvList()] : []));
-  } else {
-    dyn.replaceChildren(h('p', {}, 'Send files between your devices over an encrypted peer-to-peer link. Nothing is uploaded to a server and nothing is stored once the host tab closes.'),
-      h('div', { class: 'bar' }, h('button', { class: 'p', onclick: startHost }, 'Start a session on this device')),
-      h('p', { class: 'mut' }, 'To join someone else\'s session, scan their QR code.'));
-  }
+  const v = S.mode == 'host' ? hostView() : S.mode == 'guest' ? guestView() : homeView();
+  app.replaceChildren(...v.filter(Boolean), h('p', { class: 'foot' }, ic('lock'), 'End-to-end encrypted · peer-to-peer · nothing stored on a server'));
 }
 
 /* ---------- boot ---------- */
-app.append(h('h1', {}, 'Handoff'), dyn, prog);
-const m = /^#j=(h[0-9a-f]{32})\.([A-Za-z0-9_-]{22})$/.exec(location.hash);
+$('#logo').append(ic('logo'));
+const jm = INVITE.exec(location.hash);
 history.replaceState(null, '', location.pathname + location.search);   // keep the secret out of history/reload
-if (m) startGuest(m[1], unb64u(m[2])); else render();
+let saved = null; try { saved = JSON.parse(sessionStorage.getItem(STORE)); } catch (e) {}
+if (jm) { store(null); startGuest(jm[1], unb64u(jm[2])); }
+else if (saved && /^h[0-9a-f]{32}$/.test(saved.hostId) && /^[0-9a-f]{32}$/.test(saved.rid) && typeof saved.rk == 'string') startGuest(saved.hostId, null, saved);
+else render();
 </script>
 </body>
 </html>
